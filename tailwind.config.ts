@@ -28,6 +28,19 @@ export default {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
+				study: {
+					50: '#f0f7ff',
+					100: '#e0effe',
+					200: '#bae0fd',
+					300: '#7dc9fc',
+					400: '#38aaf8',
+					500: '#0f8ce7',
+					600: '#0270c5',
+					700: '#0259a0',
+					800: '#064b85',
+					900: '#0c406e',
+					950: '#082949',
+				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
