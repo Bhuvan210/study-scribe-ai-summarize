@@ -3,11 +3,29 @@ import { SummaryParams, Summary } from "@/types";
 
 // Simulated Gemini Flash 2.0 API service
 class GeminiService {
+  private apiKey: string | null = null;
+
+  setApiKey(key: string) {
+    this.apiKey = key;
+    localStorage.setItem('gemini_api_key', key);
+  }
+  
+  getApiKey(): string | null {
+    if (!this.apiKey) {
+      this.apiKey = localStorage.getItem('gemini_api_key');
+    }
+    return this.apiKey;
+  }
+
   async summarizeText(params: SummaryParams): Promise<Summary> {
+    // Check if we have an API key
+    const apiKey = this.getApiKey();
+    
     // This is a mock implementation that simulates Gemini Flash 2.0 API call
     // In a real app, this would call the actual Gemini API
     return new Promise((resolve) => {
       console.log("Using Gemini Flash 2.0 for summarization...");
+      console.log("API Key available:", !!apiKey);
       
       setTimeout(() => {
         const { text, lengthType, lengthValue } = params;
@@ -22,7 +40,7 @@ class GeminiService {
           lengthType,
           lengthValue,
           createdAt: new Date().toISOString(),
-          model: "Gemini Flash 2.0",
+          model: apiKey ? "Gemini Flash 2.0 (Authenticated)" : "Gemini Flash 2.0 (Demo)",
         };
         
         resolve(summary);

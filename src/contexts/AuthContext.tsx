@@ -9,6 +9,8 @@ interface AuthContextType extends AuthState {
   googleAuth: () => Promise<User>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  verifyEmail: (code: string) => Promise<boolean>;
+  updateProfile: (userData: Partial<User>) => Promise<User>;
 }
 
 const initialState: AuthState = {
@@ -84,6 +86,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const verifyEmail = async (code: string) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const success = await authService.verifyEmail(code);
+      if (success) {
+        const user = authService.getCurrentUser();
+        setState({
+          user,
+          isAuthenticated: !!user,
+          isLoading: false,
+        });
+      } else {
+        setState((prev) => ({ ...prev, isLoading: false }));
+      }
+      return success;
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  };
+
+  const updateProfile = async (userData: Partial<User>) => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const updatedUser = await authService.updateProfile(userData);
+      setState({
+        user: updatedUser,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      return updatedUser;
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -108,6 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     googleAuth,
     logout,
     resetPassword,
+    verifyEmail,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

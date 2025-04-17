@@ -1,7 +1,16 @@
+
 // User types
 export interface User {
   id: string;
   email: string;
+  name?: string;
+  isVerified?: boolean;
+  profilePicture?: string;
+  createdAt?: string;
+  bio?: string;
+  location?: string;
+  phone?: string;
+  website?: string;
 }
 
 // Authentication types
