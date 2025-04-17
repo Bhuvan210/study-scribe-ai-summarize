@@ -2,10 +2,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FormLabel } from '@/components/ui/form';
 import { useToast } from '@/components/ui/use-toast';
 import { geminiService } from '@/services/gemini';
 import { Key } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 export function ApiKeyInput() {
   const [apiKey, setApiKey] = useState<string>(() => {
@@ -44,7 +44,7 @@ export function ApiKeyInput() {
       </p>
       
       <div className="space-y-2">
-        <FormLabel htmlFor="api-key">API Key</FormLabel>
+        <Label htmlFor="api-key">API Key</Label>
         <div className="relative">
           <Input
             id="api-key"
