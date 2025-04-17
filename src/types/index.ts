@@ -1,4 +1,3 @@
-
 // User types
 export interface User {
   id: string;
@@ -23,9 +22,10 @@ export interface Summary {
   id: string;
   originalText: string;
   summaryText: string;
-  lengthType: "short" | "medium" | "long" | "percentage";
+  lengthType: string;
   lengthValue: string | number;
   createdAt: string;
+  model?: string; // Add model information
 }
 
 export interface SummaryHistory {

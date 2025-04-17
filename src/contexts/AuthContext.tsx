@@ -6,6 +6,7 @@ import { authService } from "@/services/auth";
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string) => Promise<User>;
+  googleAuth: () => Promise<User>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -39,6 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
       const user = await authService.login(email, password);
+      setState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+      return user;
+    } catch (error) {
+      setState((prev) => ({ ...prev, isLoading: false }));
+      throw error;
+    }
+  };
+
+  const googleAuth = async () => {
+    setState((prev) => ({ ...prev, isLoading: true }));
+    try {
+      const user = await authService.googleAuth();
       setState({
         user,
         isAuthenticated: true,
@@ -88,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ...state,
     login,
     register,
+    googleAuth,
     logout,
     resetPassword,
   };

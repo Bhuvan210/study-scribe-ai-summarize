@@ -1,19 +1,32 @@
 
 import { Summary, SummaryParams } from "@/types";
+import { geminiService } from "./gemini";
 
-// Simulated summarization service
+// Summarization service
 class SummaryService {
   private static HISTORY_KEY = "study_scribe_summaries";
 
   async summarizeText(params: SummaryParams): Promise<Summary> {
-    // This is a mock implementation that simulates API call
-    // In a real app, this would call an actual AI API
+    try {
+      // Use Gemini Flash 2.0 for summarization
+      const summary = await geminiService.summarizeText(params);
+      this.saveSummary(summary);
+      return summary;
+    } catch (error) {
+      console.error("Error using Gemini service:", error);
+      
+      // Fallback to legacy summarization if Gemini fails
+      return this.legacySummarize(params);
+    }
+  }
+  
+  // Legacy summarization method as fallback
+  private async legacySummarize(params: SummaryParams): Promise<Summary> {
     return new Promise((resolve) => {
       setTimeout(() => {
         const { text, lengthType, lengthValue } = params;
         
         // Create a simulated summary
-        // In a real app, this would come from the API response
         const summaryText = this.createMockSummary(text, lengthType, lengthValue);
         
         const summary: Summary = {
@@ -23,6 +36,7 @@ class SummaryService {
           lengthType,
           lengthValue,
           createdAt: new Date().toISOString(),
+          model: "Legacy",
         };
         
         this.saveSummary(summary);
@@ -53,7 +67,7 @@ class SummaryService {
     localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(summaries));
   }
 
-  // Helper method to create a mock summary
+  // Helper method to create a mock summary (legacy method)
   private createMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
     const words = text.split(/\s+/);
     let percentToKeep = 0.3; // Default to medium length (30%)

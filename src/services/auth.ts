@@ -22,6 +22,19 @@ class AuthService {
     });
   }
   
+  async googleAuth(): Promise<User> {
+    // This is a mock implementation for Google Auth
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // In a real app, this would integrate with the Google OAuth API
+        const randomEmail = `user${Math.floor(Math.random() * 10000)}@gmail.com`;
+        const user = { id: crypto.randomUUID(), email: randomEmail };
+        localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
+        resolve(user);
+      }, 1000);
+    });
+  }
+  
   async register(email: string, password: string): Promise<User> {
     // This is a mock implementation for demo purposes
     return new Promise((resolve, reject) => {
