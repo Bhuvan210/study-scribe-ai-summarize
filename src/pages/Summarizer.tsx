@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -304,22 +303,22 @@ export default function Summarizer() {
                   </Form>
                 </TabsContent>
                 <TabsContent value="upload">
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-center w-full">
                       <label
                         htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100"
+                        className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted dark:border-gray-600 dark:hover:border-gray-500"
                       >
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           {isUploading ? (
-                            <Loader2 className="h-8 w-8 text-study-600 animate-spin" />
+                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
                           ) : (
-                            <FileUp className="h-8 w-8 text-study-600" />
+                            <FileUp className="h-8 w-8 text-primary" />
                           )}
-                          <p className="mb-2 text-sm text-gray-500">
+                          <p className="mb-2 text-sm text-foreground">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             PDF, DOCX, TXT (MAX. 10MB)
                           </p>
                         </div>
@@ -333,6 +332,92 @@ export default function Summarizer() {
                         />
                       </label>
                     </div>
+
+                    {form.watch("text") && (
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-muted/50">
+                          <p className="text-sm text-foreground break-all">
+                            {form.watch("text")}
+                          </p>
+                        </div>
+
+                        <div>
+                          <FormLabel>Summary Length</FormLabel>
+                          <div className="mt-1.5">
+                            <FormField
+                              control={form.control}
+                              name="summaryLength"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select summary length" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="short">
+                                        Short (~10% of original)
+                                      </SelectItem>
+                                      <SelectItem value="medium">
+                                        Medium (~30% of original)
+                                      </SelectItem>
+                                      <SelectItem value="long">
+                                        Long (~50% of original)
+                                      </SelectItem>
+                                      <SelectItem value="percentage">
+                                        Custom percentage
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        {watchSummaryLength === "percentage" && (
+                          <FormField
+                            control={form.control}
+                            name="percentageValue"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Percentage (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                          onClick={form.handleSubmit(onSubmit)}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Summarizing...
+                            </>
+                          ) : (
+                            "Summarize Text"
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>
