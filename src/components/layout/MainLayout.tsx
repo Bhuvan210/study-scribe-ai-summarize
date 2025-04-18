@@ -11,8 +11,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   const { theme } = useTheme();
   
   return (
-    <div className="min-h-screen cyber-grid">
-      <div className="fixed inset-0 bg-gradient-to-br from-primary/20 via-background to-secondary/20 pointer-events-none" />
+    <div className={`min-h-screen cyber-grid ${theme === "dark" ? "dark" : ""}`}>
+      <div className="fixed inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/10 pointer-events-none" />
       <Navbar />
       <main className="relative flex-1 py-8">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
