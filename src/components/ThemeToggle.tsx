@@ -11,15 +11,15 @@ export function ThemeToggle() {
       variant="outline" 
       size="icon" 
       onClick={toggleTheme}
-      className="relative overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all"
+      className="relative overflow-hidden glass glass-hover"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 opacity-0 hover:opacity-100 transition-opacity"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
       {theme === "light" ? (
-        <Sun className="h-[1.2rem] w-[1.2rem] text-indigo-600 dark:text-indigo-400" />
+        <Sun className="h-[1.2rem] w-[1.2rem] text-yellow-500 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
       ) : (
-        <Moon className="h-[1.2rem] w-[1.2rem] text-indigo-400" />
+        <Moon className="absolute h-[1.2rem] w-[1.2rem] text-primary rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
       )}
-      <span className="sr-only">{theme === "light" ? "Dark mode" : "Light mode"}</span>
+      <span className="sr-only">Toggle theme</span>
     </Button>
   );
 }
