@@ -29,7 +29,10 @@ export default function Summaries() {
     });
   };
 
+  // Updated getSourceIcon function to handle undefined source
   const getSourceIcon = (source: string | undefined) => {
+    if (!source) return null;
+    
     switch(source) {
       case 'google':
         return <FileText className="h-3 w-3 mr-1" />;

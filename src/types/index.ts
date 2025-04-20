@@ -34,7 +34,8 @@ export interface Summary {
   lengthType: string;
   lengthValue: string | number;
   createdAt: string;
-  model?: string; // Add model information
+  model?: string;
+  source?: string; // Added source property as optional
 }
 
 export interface SummaryHistory {
