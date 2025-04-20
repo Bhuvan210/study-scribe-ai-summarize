@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSummary } from "@/contexts/SummaryContext";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { FileUp, Loader2 } from "lucide-react";
+import { FileUp, Loader2, FileText, Book, Upload } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -60,6 +60,7 @@ export default function Summarizer() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState("paste");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -163,6 +164,24 @@ export default function Summarizer() {
     }
   };
 
+  const importFromGoogleDocs = () => {
+    // This would integrate with Google Drive API
+    setActiveTab("external");
+    toast({
+      title: "Google Docs Integration",
+      description: "This would open Google OAuth for document selection (implementation pending)",
+    });
+  };
+
+  const importFromNotion = () => {
+    // This would integrate with Notion API
+    setActiveTab("external");
+    toast({
+      title: "Notion Integration",
+      description: "This would connect to your Notion account (implementation pending)",
+    });
+  };
+
   const copyToClipboard = () => {
     if (summary) {
       navigator.clipboard.writeText(summary.summaryText);
@@ -177,10 +196,10 @@ export default function Summarizer() {
     <MainLayout>
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50 sm:text-4xl">
+          <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
             AI Text Summarizer
           </h1>
-          <p className="mt-3 text-lg text-gray-600 dark:text-gray-300">
+          <p className="mt-3 text-lg text-muted-foreground">
             Upload a document or paste text to generate concise summaries
           </p>
         </div>
@@ -188,17 +207,20 @@ export default function Summarizer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Input Text</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-foreground">Input Text</CardTitle>
+              <CardDescription className="text-muted-foreground">
                 Upload a file or paste your text
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="paste">
-                <TabsList className="mb-4 grid w-full grid-cols-2">
+              <Tabs defaultValue="paste" value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-4 grid w-full grid-cols-4">
                   <TabsTrigger value="paste">Paste Text</TabsTrigger>
                   <TabsTrigger value="upload">Upload File</TabsTrigger>
+                  <TabsTrigger value="google">Google Docs</TabsTrigger>
+                  <TabsTrigger value="notion">Notion</TabsTrigger>
                 </TabsList>
+                
                 <TabsContent value="paste">
                   <Form {...form}>
                     <form
@@ -210,16 +232,16 @@ export default function Summarizer() {
                         name="text"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Your Text</FormLabel>
+                            <FormLabel className="text-foreground">Your Text</FormLabel>
                             <FormControl>
                               <Textarea
                                 placeholder="Paste your text here to summarize..."
-                                className="h-48 resize-none"
+                                className="h-48 resize-none text-foreground"
                                 {...field}
                               />
                             </FormControl>
                             <FormMessage />
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs text-muted-foreground">
                               {field.value.length}/50,000 characters
                             </div>
                           </FormItem>
@@ -228,7 +250,7 @@ export default function Summarizer() {
 
                       <div className="space-y-4">
                         <div>
-                          <FormLabel>Summary Length</FormLabel>
+                          <FormLabel className="text-foreground">Summary Length</FormLabel>
                           <div className="mt-1.5">
                             <FormField
                               control={form.control}
@@ -272,13 +294,14 @@ export default function Summarizer() {
                             name="percentageValue"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Percentage (%)</FormLabel>
+                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"
                                     min="1"
                                     max="100"
                                     {...field}
+                                    className="text-foreground"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -305,6 +328,7 @@ export default function Summarizer() {
                     </form>
                   </Form>
                 </TabsContent>
+                
                 <TabsContent value="upload">
                   <div className="space-y-6">
                     <div className="flex items-center justify-center w-full">
@@ -318,10 +342,10 @@ export default function Summarizer() {
                           ) : (
                             <FileUp className="h-8 w-8 text-primary" />
                           )}
-                          <p className="mb-2 text-sm text-foreground dark:text-gray-200">
+                          <p className="mb-2 text-sm text-foreground">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-muted-foreground dark:text-gray-400">
+                          <p className="text-xs text-muted-foreground">
                             PDF, DOCX, TXT (MAX. 10MB)
                           </p>
                         </div>
@@ -337,10 +361,10 @@ export default function Summarizer() {
                     </div>
 
                     {uploadedFile && (
-                      <div className="p-3 rounded-md border bg-muted/30 dark:bg-gray-800 dark:border-gray-700 flex items-center justify-between">
+                      <div className="p-3 rounded-md border bg-muted/30 dark:bg-muted flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <FileUp className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium text-foreground dark:text-gray-200">
+                          <span className="text-sm font-medium text-foreground">
                             {uploadedFile.name}
                           </span>
                         </div>
@@ -349,14 +373,14 @@ export default function Summarizer() {
 
                     {form.watch("text") && (
                       <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-gray-800 dark:text-gray-200">
-                          <p className="text-sm text-foreground dark:text-gray-200 break-all">
+                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted">
+                          <p className="text-sm text-foreground break-all">
                             {form.watch("text")}
                           </p>
                         </div>
 
                         <div>
-                          <FormLabel className="text-foreground dark:text-gray-200">Summary Length</FormLabel>
+                          <FormLabel className="text-foreground">Summary Length</FormLabel>
                           <div className="mt-1.5">
                             <FormField
                               control={form.control}
@@ -400,13 +424,14 @@ export default function Summarizer() {
                             name="percentageValue"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-foreground dark:text-gray-200">Percentage (%)</FormLabel>
+                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"
                                     min="1"
                                     max="100"
                                     {...field}
+                                    className="text-foreground"
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -434,6 +459,40 @@ export default function Summarizer() {
                     )}
                   </div>
                 </TabsContent>
+                
+                <TabsContent value="google">
+                  <div className="space-y-6 py-4">
+                    <Button 
+                      className="w-full flex items-center justify-center gap-2" 
+                      variant="outline"
+                      onClick={importFromGoogleDocs}
+                    >
+                      <FileText className="h-5 w-5" />
+                      Connect to Google Docs
+                    </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Import documents directly from your Google Drive.
+                      <br />Sign in with your Google account to access your docs.
+                    </p>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="notion">
+                  <div className="space-y-6 py-4">
+                    <Button 
+                      className="w-full flex items-center justify-center gap-2" 
+                      variant="outline"
+                      onClick={importFromNotion}
+                    >
+                      <Book className="h-5 w-5" />
+                      Connect to Notion
+                    </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Import pages directly from your Notion workspace.
+                      <br />Authorize access to select and import Notion pages.
+                    </p>
+                  </div>
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
@@ -442,8 +501,8 @@ export default function Summarizer() {
             <Card className="md:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Summary</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-foreground">Summary</CardTitle>
+                  <CardDescription className="text-muted-foreground">
                     Generated {summary.lengthType === "percentage"
                       ? `${summary.lengthValue}%`
                       : summary.lengthType} summary
@@ -454,12 +513,12 @@ export default function Summarizer() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-4">
-                  <p className="whitespace-pre-line dark:text-gray-200">{summary.summaryText}</p>
+                <div className="rounded-md bg-muted p-4">
+                  <p className="whitespace-pre-line text-foreground">{summary.summaryText}</p>
                 </div>
               </CardContent>
               <CardFooter>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Summary created at{" "}
                   {new Date(summary.createdAt).toLocaleString()}
                 </p>
