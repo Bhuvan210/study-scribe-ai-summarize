@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,6 +59,7 @@ export default function Summarizer() {
   const { toast } = useToast();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -130,6 +132,7 @@ export default function Summarizer() {
     }
     
     setIsUploading(true);
+    setUploadedFile(file);
     
     try {
       // In a real app, this would parse the file content
@@ -174,10 +177,10 @@ export default function Summarizer() {
     <MainLayout>
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50 sm:text-4xl">
             AI Text Summarizer
           </h1>
-          <p className="mt-3 text-lg text-gray-600">
+          <p className="mt-3 text-lg text-gray-600 dark:text-gray-300">
             Upload a document or paste text to generate concise summaries
           </p>
         </div>
@@ -216,7 +219,7 @@ export default function Summarizer() {
                               />
                             </FormControl>
                             <FormMessage />
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               {field.value.length}/50,000 characters
                             </div>
                           </FormItem>
@@ -315,10 +318,10 @@ export default function Summarizer() {
                           ) : (
                             <FileUp className="h-8 w-8 text-primary" />
                           )}
-                          <p className="mb-2 text-sm text-foreground">
+                          <p className="mb-2 text-sm text-foreground dark:text-gray-200">
                             <span className="font-semibold">Click to upload</span> or drag and drop
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground dark:text-gray-400">
                             PDF, DOCX, TXT (MAX. 10MB)
                           </p>
                         </div>
@@ -333,16 +336,27 @@ export default function Summarizer() {
                       </label>
                     </div>
 
+                    {uploadedFile && (
+                      <div className="p-3 rounded-md border bg-muted/30 dark:bg-gray-800 dark:border-gray-700 flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <FileUp className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-medium text-foreground dark:text-gray-200">
+                            {uploadedFile.name}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
                     {form.watch("text") && (
                       <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-muted/50">
-                          <p className="text-sm text-foreground break-all">
+                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-gray-800 dark:text-gray-200">
+                          <p className="text-sm text-foreground dark:text-gray-200 break-all">
                             {form.watch("text")}
                           </p>
                         </div>
 
                         <div>
-                          <FormLabel>Summary Length</FormLabel>
+                          <FormLabel className="text-foreground dark:text-gray-200">Summary Length</FormLabel>
                           <div className="mt-1.5">
                             <FormField
                               control={form.control}
@@ -386,7 +400,7 @@ export default function Summarizer() {
                             name="percentageValue"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Percentage (%)</FormLabel>
+                                <FormLabel className="text-foreground dark:text-gray-200">Percentage (%)</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"
@@ -440,12 +454,12 @@ export default function Summarizer() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="rounded-md bg-gray-50 p-4">
-                  <p className="whitespace-pre-line">{summary.summaryText}</p>
+                <div className="rounded-md bg-gray-50 dark:bg-gray-800 p-4">
+                  <p className="whitespace-pre-line dark:text-gray-200">{summary.summaryText}</p>
                 </div>
               </CardContent>
               <CardFooter>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Summary created at{" "}
                   {new Date(summary.createdAt).toLocaleString()}
                 </p>
