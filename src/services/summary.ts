@@ -8,6 +8,14 @@ class SummaryService {
 
   async summarizeText(params: SummaryParams): Promise<Summary> {
     try {
+      // Check if API key exists
+      const apiKey = geminiService.getApiKey();
+      
+      if (!apiKey) {
+        console.warn("No Gemini API key found - using fallback summarization");
+        return this.legacySummarize(params);
+      }
+      
       // Use Gemini Flash 2.0 for summarization
       const summary = await geminiService.summarizeText(params);
       this.saveSummary(summary);
@@ -37,6 +45,7 @@ class SummaryService {
           lengthValue,
           createdAt: new Date().toISOString(),
           model: "Legacy",
+          source: params.source
         };
         
         this.saveSummary(summary);

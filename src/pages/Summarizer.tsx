@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, FormProvider } from "react-hook-form";
@@ -7,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSummary } from "@/contexts/SummaryContext";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { FileUp, Loader2, FileText, Book, Upload } from "lucide-react";
+import { FileUp, Loader2, FileText, Book, Upload, Key, AlertCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -39,6 +40,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Summary } from "@/types";
+import { geminiService } from "@/services/gemini";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -60,6 +63,13 @@ export default function Summarizer() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("paste");
+  const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+  
+  // Check for API key on component mount
+  useEffect(() => {
+    const apiKey = geminiService.getApiKey();
+    setHasApiKey(!!apiKey);
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -206,6 +216,17 @@ export default function Summarizer() {
             Upload a document or paste text to generate concise summaries
           </p>
         </div>
+        
+        {!hasApiKey && (
+          <Alert variant="warning" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>API Key Required</AlertTitle>
+            <AlertDescription>
+              For better summarization quality, please add your Gemini API key in the Profile page.
+              The app will use a basic fallback summarization method until an API key is provided.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           <Card className="md:col-span-2">

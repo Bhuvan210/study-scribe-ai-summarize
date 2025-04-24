@@ -3,7 +3,7 @@ import { SummaryParams, Summary } from "@/types";
 
 class GeminiService {
   private apiKey: string | null = null;
-  private API_URL = "AIzaSyDcBIxZnro6QX_i8gfy2EiAZyXBbeEzQqU";
+  private API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
   setApiKey(key: string) {
     this.apiKey = key;
@@ -67,6 +67,7 @@ class GeminiService {
         lengthValue: params.lengthValue,
         createdAt: new Date().toISOString(),
         model: "Gemini Flash 2.0",
+        source: params.source
       };
 
       return summary;
