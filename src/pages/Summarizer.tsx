@@ -225,7 +225,7 @@ export default function Summarizer() {
                 </TabsList>
                 
                 <TabsContent value="paste">
-                  <FormProvider {...form.formState}>
+                  <FormProvider {...form}>
                     <Form {...form}>
                       <form
                         onSubmit={form.handleSubmit(onSubmit)}
