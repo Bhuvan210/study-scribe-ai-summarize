@@ -68,7 +68,13 @@ export default function Summarizer() {
   // Check for API key on component mount
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
-    setHasApiKey(!!apiKey);
+    if (!apiKey) {
+      // Setting the API key you provided
+      geminiService.setApiKey("AIzaSyCS4ynduDtHdAwhv9dKDlMw9DZ6hpZ6q9I");
+      setHasApiKey(true);
+    } else {
+      setHasApiKey(!!apiKey);
+    }
   }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -218,7 +224,7 @@ export default function Summarizer() {
         </div>
         
         {!hasApiKey && (
-          <Alert variant="warning" className="mb-6">
+          <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>API Key Required</AlertTitle>
             <AlertDescription>
