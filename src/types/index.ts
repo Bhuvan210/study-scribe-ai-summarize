@@ -25,6 +25,7 @@ export interface SummaryParams {
   text: string;
   lengthType: "short" | "medium" | "long" | "percentage";
   lengthValue: string | number;
+  source?: string; // Added source property
 }
 
 export interface Summary {

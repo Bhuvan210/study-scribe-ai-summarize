@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
@@ -91,14 +90,26 @@ export default function Summarizer() {
         }
       }
       
+      let source: string | undefined = undefined;
+      
+      if (activeTab === "upload" && uploadedFile) {
+        source = uploadedFile.name;
+      } else if (activeTab === "google") {
+        source = "google";
+      } else if (activeTab === "notion") {
+        source = "notion";
+      }
+      
       const result = await summarizeText({
         text: values.text,
         lengthType: values.summaryLength,
         lengthValue,
+        source,
       });
       
       setSummary(result);
     } catch (error) {
+      console.error("Summarization error:", error);
       toast({
         title: "Summarization failed",
         description: "There was an error generating the summary. Please try again.",
@@ -112,7 +123,6 @@ export default function Summarizer() {
     
     const file = e.target.files[0];
     
-    // Validate file type
     if (!SUPPORTED_FILE_TYPES.includes(file.type)) {
       toast({
         title: "Unsupported file type",
@@ -122,7 +132,6 @@ export default function Summarizer() {
       return;
     }
     
-    // Validate file size
     if (file.size > MAX_UPLOAD_SIZE) {
       toast({
         title: "File too large",
@@ -136,14 +145,10 @@ export default function Summarizer() {
     setUploadedFile(file);
     
     try {
-      // In a real app, this would parse the file content
-      // For this demo, we'll just read text files
       if (file.type === "text/plain") {
         const text = await file.text();
         form.setValue("text", text);
       } else {
-        // For non-text files, we'd normally use a library to extract text
-        // But for this demo, we'll simulate it with a delay
         setTimeout(() => {
           form.setValue("text", `This is sample text extracted from ${file.name}. In a real application, we would parse the actual content of ${file.type === "application/pdf" ? "PDF" : "DOCX"} files.`);
         }, 1000);
@@ -165,7 +170,6 @@ export default function Summarizer() {
   };
 
   const importFromGoogleDocs = () => {
-    // This would integrate with Google Drive API
     setActiveTab("external");
     toast({
       title: "Google Docs Integration",
@@ -174,7 +178,6 @@ export default function Summarizer() {
   };
 
   const importFromNotion = () => {
-    // This would integrate with Notion API
     setActiveTab("external");
     toast({
       title: "Notion Integration",
@@ -222,111 +225,113 @@ export default function Summarizer() {
                 </TabsList>
                 
                 <TabsContent value="paste">
-                  <Form {...form}>
-                    <form
-                      onSubmit={form.handleSubmit(onSubmit)}
-                      className="space-y-4"
-                    >
-                      <FormField
-                        control={form.control}
-                        name="text"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground">Your Text</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                placeholder="Paste your text here to summarize..."
-                                className="h-48 resize-none text-foreground"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                            <div className="text-xs text-muted-foreground">
-                              {field.value.length}/50,000 characters
-                            </div>
-                          </FormItem>
-                        )}
-                      />
+                  <FormProvider {...form.formState}>
+                    <Form {...form}>
+                      <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-4"
+                      >
+                        <FormField
+                          control={form.control}
+                          name="text"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-foreground">Your Text</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Paste your text here to summarize..."
+                                  className="h-48 resize-none text-foreground"
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                              <div className="text-xs text-muted-foreground">
+                                {field.value.length}/50,000 characters
+                              </div>
+                            </FormItem>
+                          )}
+                        />
 
-                      <div className="space-y-4">
-                        <div>
-                          <FormLabel className="text-foreground">Summary Length</FormLabel>
-                          <div className="mt-1.5">
+                        <div className="space-y-4">
+                          <div>
+                            <FormLabel className="text-foreground">Summary Length</FormLabel>
+                            <div className="mt-1.5">
+                              <FormField
+                                control={form.control}
+                                name="summaryLength"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select summary length" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="short">
+                                          Short (~10% of original)
+                                        </SelectItem>
+                                        <SelectItem value="medium">
+                                          Medium (~30% of original)
+                                        </SelectItem>
+                                        <SelectItem value="long">
+                                          Long (~50% of original)
+                                        </SelectItem>
+                                        <SelectItem value="percentage">
+                                          Custom percentage
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+
+                          {watchSummaryLength === "percentage" && (
                             <FormField
                               control={form.control}
-                              name="summaryLength"
+                              name="percentageValue"
                               render={({ field }) => (
                                 <FormItem>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select summary length" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="short">
-                                        Short (~10% of original)
-                                      </SelectItem>
-                                      <SelectItem value="medium">
-                                        Medium (~30% of original)
-                                      </SelectItem>
-                                      <SelectItem value="long">
-                                        Long (~50% of original)
-                                      </SelectItem>
-                                      <SelectItem value="percentage">
-                                        Custom percentage
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                                  <FormLabel className="text-foreground">Percentage (%)</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      max="100"
+                                      {...field}
+                                      className="text-foreground"
+                                    />
+                                  </FormControl>
                                   <FormMessage />
                                 </FormItem>
                               )}
                             />
-                          </div>
+                          )}
                         </div>
 
-                        {watchSummaryLength === "percentage" && (
-                          <FormField
-                            control={form.control}
-                            name="percentageValue"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    {...field}
-                                    className="text-foreground"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-                      </div>
-
-                      <Button
-                        type="submit"
-                        className="w-full"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Summarizing...
-                          </>
-                        ) : (
-                          "Summarize Text"
-                        )}
-                      </Button>
-                    </form>
-                  </Form>
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Summarizing...
+                            </>
+                          ) : (
+                            "Summarize Text"
+                          )}
+                        </Button>
+                      </form>
+                    </Form>
+                  </FormProvider>
                 </TabsContent>
                 
                 <TabsContent value="upload">
