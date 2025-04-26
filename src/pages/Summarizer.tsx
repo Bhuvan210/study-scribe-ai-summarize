@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -42,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Summary } from "@/types";
 import { geminiService } from "@/services/gemini";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ChatInterface } from "@/components/summary/ChatInterface";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -65,11 +65,9 @@ export default function Summarizer() {
   const [activeTab, setActiveTab] = useState("paste");
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   
-  // Check for API key on component mount
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
     if (!apiKey) {
-      // Setting the API key you provided
       geminiService.setApiKey("AIzaSyCS4ynduDtHdAwhv9dKDlMw9DZ6hpZ6q9I");
       setHasApiKey(true);
     } else {
@@ -530,32 +528,37 @@ export default function Summarizer() {
           </Card>
 
           {summary && (
-            <Card className="md:col-span-2">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-foreground">Summary</CardTitle>
-                  <CardDescription className="text-muted-foreground">
-                    Generated {summary.lengthType === "percentage"
-                      ? `${summary.lengthValue}%`
-                      : summary.lengthType} summary
-                  </CardDescription>
-                </div>
-                <Button onClick={copyToClipboard} variant="outline">
-                  Copy to Clipboard
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md bg-muted p-4">
-                  <p className="whitespace-pre-line text-foreground">{summary.summaryText}</p>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <p className="text-sm text-muted-foreground">
-                  Summary created at{" "}
-                  {new Date(summary.createdAt).toLocaleString()}
-                </p>
-              </CardFooter>
-            </Card>
+            <>
+              <Card className="md:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-foreground">Summary</CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      Generated {summary.lengthType === "percentage"
+                        ? `${summary.lengthValue}%`
+                        : summary.lengthType} summary
+                    </CardDescription>
+                  </div>
+                  <Button onClick={copyToClipboard} variant="outline">
+                    Copy to Clipboard
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md bg-muted p-4">
+                    <p className="whitespace-pre-line text-foreground">{summary.summaryText}</p>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <p className="text-sm text-muted-foreground">
+                    Summary created at{" "}
+                    {new Date(summary.createdAt).toLocaleString()}
+                  </p>
+                </CardFooter>
+              </Card>
+              <div className="md:col-span-2">
+                <ChatInterface summary={summary} />
+              </div>
+            </>
           )}
         </div>
       </div>
