@@ -4,8 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Summary } from "@/types";
+import { pipeline, env } from '@huggingface/transformers';
+
+// Configure transformers.js to use browser cache
+env.allowLocalModels = false;
+env.useBrowserCache = true;
 
 interface Message {
   role: "user" | "assistant";
@@ -25,6 +30,24 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [model, setModel] = useState<any>(null);
+
+  const initializeModel = async () => {
+    try {
+      const pipe = await pipeline(
+        'text-generation',
+        'Xenova/gpt2-tiny',
+        { device: 'webgpu' }
+      );
+      setModel(pipe);
+    } catch (error) {
+      console.error('Error initializing model:', error);
+    }
+  };
+
+  useState(() => {
+    initializeModel();
+  }, []);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -38,15 +61,38 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
     setNewMessage("");
     setIsLoading(true);
 
-    // Simulate AI response (you can replace this with actual API call later)
-    setTimeout(() => {
+    try {
+      let response = "I'm processing your question...";
+
+      if (model) {
+        // Prepare context for the model
+        const context = `Summary: ${summary.summaryText}\n\nQuestion: ${newMessage}\n\nAnswer:`;
+        
+        const result = await model(context, {
+          max_length: 100,
+          temperature: 0.7,
+        });
+
+        response = result[0].generated_text.split('Answer:')[1]?.trim() || 
+                  "I understand your question. Based on the summary: " + summary.summaryText.slice(0, 100) + "...";
+      }
+
       const assistantMessage: Message = {
         role: "assistant",
-        content: `I understand your question about "${newMessage}". The summary discusses: ${summary.summaryText.slice(0, 100)}...`,
+        content: response,
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error generating response:', error);
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "I apologize, but I encountered an error processing your question. Let me know if you'd like to try again.",
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -90,7 +136,11 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
           disabled={isLoading}
           className="shrink-0"
         >
-          <Send className="h-4 w-4" />
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
         </Button>
       </div>
     </Card>
