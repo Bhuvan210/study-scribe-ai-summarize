@@ -42,6 +42,7 @@ import { Summary } from "@/types";
 import { geminiService } from "@/services/gemini";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChatInterface } from "@/components/summary/ChatInterface";
+import { NotionIntegration } from "@/components/integrations/NotionIntegration";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -191,11 +192,11 @@ export default function Summarizer() {
     });
   };
 
-  const importFromNotion = () => {
-    setActiveTab("external");
+  const handleNotionPageSelected = (content: string) => {
+    form.setValue("text", content);
     toast({
-      title: "Notion Integration",
-      description: "This would connect to your Notion account (implementation pending)",
+      title: "Content imported",
+      description: "Notion page content imported successfully",
     });
   };
 
@@ -508,20 +509,7 @@ export default function Summarizer() {
                 </TabsContent>
                 
                 <TabsContent value="notion">
-                  <div className="space-y-6 py-4">
-                    <Button 
-                      className="w-full flex items-center justify-center gap-2" 
-                      variant="outline"
-                      onClick={importFromNotion}
-                    >
-                      <Book className="h-5 w-5" />
-                      Connect to Notion
-                    </Button>
-                    <p className="text-center text-sm text-muted-foreground">
-                      Import pages directly from your Notion workspace.
-                      <br />Authorize access to select and import Notion pages.
-                    </p>
-                  </div>
+                  <NotionIntegration onPageSelected={handleNotionPageSelected} />
                 </TabsContent>
               </Tabs>
             </CardContent>
