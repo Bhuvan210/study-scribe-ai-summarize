@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSummary } from "@/contexts/SummaryContext";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { FileUp, Loader2, FileText, Book, Upload, Key, AlertCircle } from "lucide-react";
+import { FileUp, Loader2, FileText, Link, Upload, Key, AlertCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -42,7 +43,7 @@ import { Summary } from "@/types";
 import { geminiService } from "@/services/gemini";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChatInterface } from "@/components/summary/ChatInterface";
-import { NotionIntegration } from "@/components/integrations/NotionIntegration";
+import { UrlSummarizer } from "@/components/integrations/UrlSummarizer";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -111,8 +112,8 @@ export default function Summarizer() {
         source = uploadedFile.name;
       } else if (activeTab === "google") {
         source = "google";
-      } else if (activeTab === "notion") {
-        source = "notion";
+      } else if (activeTab === "url") {
+        source = "url";
       }
       
       const result = await summarizeText({
@@ -192,11 +193,11 @@ export default function Summarizer() {
     });
   };
 
-  const handleNotionPageSelected = (content: string) => {
+  const handleContentFetched = (content: string) => {
     form.setValue("text", content);
     toast({
       title: "Content imported",
-      description: "Notion page content imported successfully",
+      description: "Article content imported successfully",
     });
   };
 
@@ -247,7 +248,7 @@ export default function Summarizer() {
                   <TabsTrigger value="paste">Paste Text</TabsTrigger>
                   <TabsTrigger value="upload">Upload File</TabsTrigger>
                   <TabsTrigger value="google">Google Docs</TabsTrigger>
-                  <TabsTrigger value="notion">Notion</TabsTrigger>
+                  <TabsTrigger value="url">URL</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="paste">
@@ -508,8 +509,8 @@ export default function Summarizer() {
                   </div>
                 </TabsContent>
                 
-                <TabsContent value="notion">
-                  <NotionIntegration onPageSelected={handleNotionPageSelected} />
+                <TabsContent value="url">
+                  <UrlSummarizer onContentFetched={handleContentFetched} />
                 </TabsContent>
               </Tabs>
             </CardContent>
@@ -553,3 +554,4 @@ export default function Summarizer() {
     </MainLayout>
   );
 }
+
