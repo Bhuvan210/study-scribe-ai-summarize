@@ -18,36 +18,43 @@ export function PdfExport({ summary }: PdfExportProps) {
     setIsGenerating(true);
     
     try {
-      // In a real app, we would use a library like jsPDF to generate a PDF
-      // Here we're simulating the PDF generation process
+      // Generate PDF content
       const pdfContent = urlService.generatePdfContent(summary);
       
       // Simulate a delay for the PDF generation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // In a real app, we would create a Blob and use it to download the PDF
-      // Here we'll just show a toast message
-      console.log("Generated PDF content:", pdfContent);
-      
-      toast({
-        title: "PDF Generated",
-        description: "Your summary has been exported as a PDF file.",
+      // Create a Blob with proper MIME type and encoding
+      const blob = new Blob([pdfContent], { 
+        type: "text/plain;charset=utf-8" 
       });
       
-      // Simulate downloading a file
-      const element = document.createElement("a");
-      const file = new Blob([pdfContent], { type: "application/pdf" });
-      element.href = URL.createObjectURL(file);
-      element.download = `summary-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+      // Create a download link and trigger it
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const filename = `summary-${new Date().toISOString().split('T')[0]}.txt`;
+      
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      toast({
+        title: "Export Successful",
+        description: "Your summary has been exported as a text file.",
+      });
       
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("Error generating export:", error);
       toast({
-        title: "PDF Generation Failed",
-        description: "There was an error generating your PDF file.",
+        title: "Export Failed",
+        description: "There was an error exporting your summary.",
         variant: "destructive",
       });
     } finally {
@@ -67,7 +74,7 @@ export function PdfExport({ summary }: PdfExportProps) {
       ) : (
         <FileText className="h-4 w-4" />
       )}
-      {isGenerating ? "Generating..." : "Export as PDF"}
+      {isGenerating ? "Generating..." : "Export as Text"}
     </Button>
   );
 }

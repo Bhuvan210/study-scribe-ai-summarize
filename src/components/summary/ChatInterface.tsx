@@ -1,16 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Summary } from "@/types";
-import { pipeline, env } from '@huggingface/transformers';
-
-// Configure transformers.js to use browser cache
-env.allowLocalModels = false;
-env.useBrowserCache = true;
 
 interface Message {
   role: "user" | "assistant";
@@ -30,24 +25,43 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [model, setModel] = useState<any>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const initializeModel = async () => {
-    try {
-      const pipe = await pipeline(
-        'text-generation',
-        'Xenova/gpt2-tiny',
-        { device: 'webgpu' }
-      );
-      setModel(pipe);
-    } catch (error) {
-      console.error('Error initializing model:', error);
+  // Simple response generation without external model
+  const generateResponse = async (question: string): Promise<string> => {
+    // Extract keywords from question
+    const questionLower = question.toLowerCase();
+    const summaryText = summary.summaryText.toLowerCase();
+    
+    // Find relevant sentences in the summary that might answer the question
+    const sentences = summary.summaryText.split(/[.!?]+/).filter(s => s.trim());
+    
+    // Generate simple templates based on question type
+    if (questionLower.includes("what") || questionLower.includes("tell me about")) {
+      const relevantSentence = sentences.find(s => 
+        s.toLowerCase().includes(questionLower.replace("what is", "").replace("tell me about", "").trim())
+      ) || sentences[0];
+      
+      return `Based on the summary, ${relevantSentence.trim()}.`;
     }
+    
+    if (questionLower.includes("how")) {
+      return `The summary discusses ${summary.source || "this topic"} but doesn't provide specific details about how. You might want to check the original source for more procedural information.`;
+    }
+    
+    if (questionLower.includes("why")) {
+      const relevantSentence = sentences.find(s => 
+        s.toLowerCase().includes("because") || s.toLowerCase().includes("reason")
+      );
+      
+      return relevantSentence 
+        ? `The summary explains: ${relevantSentence.trim()}.` 
+        : `The summary doesn't explicitly state why, but it does mention ${sentences[0].trim()}.`;
+    }
+    
+    // Default response using the first couple of sentences
+    return `According to the summary: ${sentences.slice(0, 2).join(". ")}.`;
   };
-
-  useEffect(() => {
-    initializeModel();
-  }, []);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -62,21 +76,9 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
-      let response = "I'm processing your question...";
-
-      if (model) {
-        // Prepare context for the model
-        const context = `Summary: ${summary.summaryText}\n\nQuestion: ${newMessage}\n\nAnswer:`;
-        
-        const result = await model(context, {
-          max_length: 100,
-          temperature: 0.7,
-        });
-
-        response = result[0].generated_text.split('Answer:')[1]?.trim() || 
-                  "I understand your question. Based on the summary: " + summary.summaryText.slice(0, 100) + "...";
-      }
-
+      // Generate a simple response without model loading
+      const response = await generateResponse(newMessage);
+      
       const assistantMessage: Message = {
         role: "assistant",
         content: response,
@@ -94,6 +96,16 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
       setIsLoading(false);
     }
   };
+  
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight;
+      }
+    }
+  }, [messages]);
 
   return (
     <Card className="flex flex-col h-[400px]">
@@ -102,7 +114,7 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
         <h3 className="font-semibold">Chat about this summary</h3>
       </div>
       
-      <ScrollArea className="flex-1 p-4 space-y-4">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 space-y-4">
         {messages.map((message, index) => (
           <div
             key={index}
