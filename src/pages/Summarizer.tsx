@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -44,6 +43,9 @@ import { geminiService } from "@/services/gemini";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChatInterface } from "@/components/summary/ChatInterface";
 import { UrlSummarizer } from "@/components/integrations/UrlSummarizer";
+import { TextAnalysis } from "@/components/summary/TextAnalysis";
+import { PdfExport } from "@/components/summary/PdfExport";
+import { SharingOptions } from "@/components/summary/SharingOptions";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -66,6 +68,7 @@ export default function Summarizer() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("paste");
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
   
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
@@ -528,16 +531,31 @@ export default function Summarizer() {
                         : summary.lengthType} summary
                     </CardDescription>
                   </div>
-                  <Button onClick={copyToClipboard} variant="outline">
-                    Copy to Clipboard
-                  </Button>
+                  <div className="flex gap-2">
+                    <SharingOptions 
+                      summaryText={summary.summaryText} 
+                      title={summary.source ? `Summary from ${summary.source}` : "Text Summary"}
+                    />
+                    <PdfExport summary={summary} />
+                    <Button 
+                      onClick={() => setShowAnalysis(!showAnalysis)} 
+                      variant="ghost" 
+                      size="sm"
+                    >
+                      {showAnalysis ? "Hide" : "Show"} Analysis
+                    </Button>
+                  </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="rounded-md bg-muted p-4">
                     <p className="whitespace-pre-line text-foreground">{summary.summaryText}</p>
                   </div>
+                  
+                  {showAnalysis && (
+                    <TextAnalysis text={summary.summaryText} />
+                  )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex justify-between">
                   <p className="text-sm text-muted-foreground">
                     Summary created at{" "}
                     {new Date(summary.createdAt).toLocaleString()}
@@ -554,4 +572,3 @@ export default function Summarizer() {
     </MainLayout>
   );
 }
-

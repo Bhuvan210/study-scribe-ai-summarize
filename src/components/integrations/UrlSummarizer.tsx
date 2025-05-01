@@ -2,10 +2,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Link, AlertCircle } from "lucide-react";
+import { Loader2, Search, AlertCircle, FileText, Link as LinkIcon } from "lucide-react";
 import { urlService } from "@/services/url";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UrlSummarizerProps {
   onContentFetched: (content: string) => void;
@@ -15,11 +22,24 @@ export function UrlSummarizer({ onContentFetched }: UrlSummarizerProps) {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extractMode, setExtractMode] = useState<"full" | "main" | "title">("main");
+  const [metadata, setMetadata] = useState<{
+    title?: string;
+    author?: string;
+    publishDate?: string;
+    source?: string;
+    wordCount?: number;
+  } | null>(null);
   const { toast } = useToast();
 
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.target.value);
     setError(null);
+    setMetadata(null);
+  };
+
+  const handleExtractModeChange = (value: string) => {
+    setExtractMode(value as "full" | "main" | "title");
   };
 
   const fetchContent = async () => {
@@ -35,10 +55,12 @@ export function UrlSummarizer({ onContentFetched }: UrlSummarizerProps) {
     
     setIsLoading(true);
     setError(null);
+    setMetadata(null);
     
     try {
-      const content = await urlService.fetchContentFromUrl(url);
+      const { content, metadata } = await urlService.fetchContentFromUrl(url, extractMode);
       onContentFetched(content);
+      setMetadata(metadata);
       
       toast({
         title: "Article fetched",
@@ -61,7 +83,7 @@ export function UrlSummarizer({ onContentFetched }: UrlSummarizerProps) {
   return (
     <div className="space-y-4 py-2">
       <div className="flex items-center">
-        <Link className="h-5 w-5 text-indigo-600 mr-2" />
+        <LinkIcon className="h-5 w-5 text-indigo-600 mr-2" />
         <span className="font-medium">Summarize Web Article</span>
       </div>
       
@@ -87,11 +109,31 @@ export function UrlSummarizer({ onContentFetched }: UrlSummarizerProps) {
               {isLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Link className="h-4 w-4 mr-2" />
+                <Search className="h-4 w-4 mr-2" />
               )}
               {isLoading ? "Fetching..." : "Fetch"}
             </Button>
           </div>
+        </div>
+        
+        <div className="flex flex-col gap-2">
+          <label htmlFor="extract-mode" className="text-sm font-medium">
+            Content extraction mode:
+          </label>
+          <Select
+            defaultValue="main"
+            onValueChange={handleExtractModeChange}
+            value={extractMode}
+          >
+            <SelectTrigger id="extract-mode" className="w-full">
+              <SelectValue placeholder="Select extraction mode" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="main">Main content only</SelectItem>
+              <SelectItem value="full">Full page</SelectItem>
+              <SelectItem value="title">Title and summary</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         {error && (
@@ -100,6 +142,37 @@ export function UrlSummarizer({ onContentFetched }: UrlSummarizerProps) {
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
+        )}
+        
+        {metadata && (
+          <div className="p-3 bg-muted/30 rounded-md border">
+            <h4 className="text-sm font-medium mb-1 flex items-center">
+              <FileText className="h-4 w-4 mr-1" />
+              Article Information
+            </h4>
+            <dl className="text-xs space-y-1 text-muted-foreground">
+              {metadata.title && <div className="flex">
+                <dt className="font-medium w-20">Title:</dt>
+                <dd>{metadata.title}</dd>
+              </div>}
+              {metadata.author && <div className="flex">
+                <dt className="font-medium w-20">Author:</dt>
+                <dd>{metadata.author}</dd>
+              </div>}
+              {metadata.publishDate && <div className="flex">
+                <dt className="font-medium w-20">Published:</dt>
+                <dd>{metadata.publishDate}</dd>
+              </div>}
+              {metadata.source && <div className="flex">
+                <dt className="font-medium w-20">Source:</dt>
+                <dd>{metadata.source}</dd>
+              </div>}
+              {metadata.wordCount && <div className="flex">
+                <dt className="font-medium w-20">Words:</dt>
+                <dd>{metadata.wordCount.toLocaleString()}</dd>
+              </div>}
+            </dl>
+          </div>
         )}
         
         <div className="text-sm text-muted-foreground">
