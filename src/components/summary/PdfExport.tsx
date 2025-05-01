@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { FilePdf, Loader2 } from "lucide-react";
+import { FileText, Loader2 } from "lucide-react";
 import { Summary } from "@/types";
 import { urlService } from "@/services/url";
 
@@ -65,7 +65,7 @@ export function PdfExport({ summary }: PdfExportProps) {
       {isGenerating ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <FilePdf className="h-4 w-4" />
+        <FileText className="h-4 w-4" />
       )}
       {isGenerating ? "Generating..." : "Export as PDF"}
     </Button>
