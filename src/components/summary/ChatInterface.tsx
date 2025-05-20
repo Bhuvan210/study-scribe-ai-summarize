@@ -27,40 +27,141 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Simple response generation without external model
+  // Enhanced response generation using summary context
   const generateResponse = async (question: string): Promise<string> => {
-    // Extract keywords from question
+    // Extract keywords from question and summary
     const questionLower = question.toLowerCase();
-    const summaryText = summary.summaryText.toLowerCase();
+    const summaryLower = summary.summaryText.toLowerCase();
     
-    // Find relevant sentences in the summary that might answer the question
+    // Break summary into sentences and paragraphs for more contextual responses
     const sentences = summary.summaryText.split(/[.!?]+/).filter(s => s.trim());
+    const paragraphs = summary.summaryText.split(/\n+/).filter(p => p.trim());
     
-    // Generate simple templates based on question type
-    if (questionLower.includes("what") || questionLower.includes("tell me about")) {
-      const relevantSentence = sentences.find(s => 
-        s.toLowerCase().includes(questionLower.replace("what is", "").replace("tell me about", "").trim())
-      ) || sentences[0];
+    // Check if question is about the summary topic/source
+    if (questionLower.includes("what is this about") || 
+        questionLower.includes("what's this about") ||
+        questionLower.includes("topic") ||
+        questionLower.includes("subject")) {
       
-      return `Based on the summary, ${relevantSentence.trim()}.`;
+      if (summary.source) {
+        return `This summary is about content from ${summary.source}. It covers: ${sentences[0].trim()}`;
+      } else {
+        return `This summary covers: ${sentences[0].trim()}`;
+      }
     }
     
-    if (questionLower.includes("how")) {
-      return `The summary discusses ${summary.source || "this topic"} but doesn't provide specific details about how. You might want to check the original source for more procedural information.`;
+    // Check if asking about the original text length or source
+    if (questionLower.includes("original") && 
+        (questionLower.includes("length") || questionLower.includes("words") || questionLower.includes("size"))) {
+      const originalLength = summary.originalText?.length || "unknown";
+      const summaryLength = summary.summaryText.length;
+      const ratio = summary.originalText ? Math.round((summaryLength / summary.originalText.length) * 100) : null;
+      
+      return `The original text was ${originalLength} characters long, while this summary is ${summaryLength} characters${ratio ? ` (about ${ratio}% of the original)` : ""}.`;
     }
     
-    if (questionLower.includes("why")) {
-      const relevantSentence = sentences.find(s => 
-        s.toLowerCase().includes("because") || s.toLowerCase().includes("reason")
+    // Find relevant sentences based on keyword matching
+    const findRelevantContent = () => {
+      // Extract meaningful keywords from question (excluding common words)
+      const questionWords = questionLower
+        .replace(/[.,?!;:'"()\[\]{}]/g, '')
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !['what', 'when', 'where', 'which', 'who', 'whom', 'whose', 'why', 'how', 'this', 'that', 'these', 'those', 'does', 'did', 'have', 'has', 'could', 'would', 'should', 'about'].includes(word));
+      
+      // Score each sentence based on keyword matches
+      const scoredSentences = sentences.map(sentence => {
+        const sentenceLower = sentence.toLowerCase();
+        const matchCount = questionWords.reduce((count, word) => {
+          return count + (sentenceLower.includes(word) ? 1 : 0);
+        }, 0);
+        
+        return { sentence, score: matchCount };
+      });
+      
+      // Get top 2 relevant sentences
+      return scoredSentences
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 2)
+        .map(item => item.sentence.trim());
+    };
+    
+    // Generate response based on question type
+    if (questionLower.startsWith("what") || 
+        questionLower.startsWith("tell me about") ||
+        questionLower.startsWith("explain")) {
+      
+      const relevantContent = findRelevantContent();
+      
+      if (relevantContent.length > 0) {
+        return `Based on the summary: ${relevantContent.join(' ')}`;
+      } else {
+        // If no direct match, provide a general overview
+        return `The summary doesn't specifically address that, but it mentions: ${sentences.slice(0, 2).join(' ')}`;
+      }
+    }
+    
+    if (questionLower.startsWith("how") || questionLower.includes("process") || questionLower.includes("method")) {
+      const relevantSentences = sentences.filter(s => 
+        s.toLowerCase().includes("by") || 
+        s.toLowerCase().includes("through") || 
+        s.toLowerCase().includes("using") ||
+        s.toLowerCase().includes("with")
       );
       
-      return relevantSentence 
-        ? `The summary explains: ${relevantSentence.trim()}.` 
-        : `The summary doesn't explicitly state why, but it does mention ${sentences[0].trim()}.`;
+      if (relevantSentences.length > 0) {
+        return `According to the summary: ${relevantSentences[0].trim()}`;
+      } else {
+        return `The summary doesn't explain the process in detail, but it mentions: ${findRelevantContent().join(' ')}`;
+      }
     }
     
-    // Default response using the first couple of sentences
-    return `According to the summary: ${sentences.slice(0, 2).join(". ")}.`;
+    if (questionLower.startsWith("why") || questionLower.includes("reason") || questionLower.includes("cause")) {
+      const relevantSentences = sentences.filter(s => 
+        s.toLowerCase().includes("because") || 
+        s.toLowerCase().includes("due to") || 
+        s.toLowerCase().includes("reason") ||
+        s.toLowerCase().includes("result of")
+      );
+      
+      if (relevantSentences.length > 0) {
+        return `The summary explains: ${relevantSentences[0].trim()}`;
+      } else {
+        return `The summary doesn't explicitly state why, but it notes: ${findRelevantContent().join(' ')}`;
+      }
+    }
+    
+    if (questionLower.startsWith("when") || 
+        questionLower.includes("time") || 
+        questionLower.includes("date") ||
+        questionLower.includes("year")) {
+      
+      const timePatterns = [/\d{4}/, /\d{1,2}\/\d{1,2}\/\d{2,4}/, /january|february|march|april|may|june|july|august|september|october|november|december/i];
+      
+      for (const pattern of timePatterns) {
+        const timeMatches = summary.summaryText.match(pattern);
+        if (timeMatches) {
+          const relevantSentence = sentences.find(s => s.match(pattern));
+          if (relevantSentence) {
+            return `According to the summary: ${relevantSentence.trim()}`;
+          }
+        }
+      }
+      
+      return `The summary doesn't specify exact timing information, but it mentions: ${findRelevantContent().join(' ')}`;
+    }
+    
+    if (questionLower.startsWith("who") || questionLower.includes("person") || questionLower.includes("people")) {
+      const relevantContent = findRelevantContent();
+      return `Based on the summary: ${relevantContent.join(' ')}`;
+    }
+    
+    // Default response using the most relevant sentences
+    const relevantContent = findRelevantContent();
+    if (relevantContent.length > 0) {
+      return `According to the summary: ${relevantContent.join(' ')}`;
+    } else {
+      return `I don't see specific information about that in the summary. The summary mainly discusses: ${sentences[0].trim()}`;
+    }
   };
 
   const handleSendMessage = async () => {
@@ -76,7 +177,7 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
     setIsLoading(true);
 
     try {
-      // Generate a simple response without model loading
+      // Generate response using the enhanced context-aware function
       const response = await generateResponse(newMessage);
       
       const assistantMessage: Message = {
