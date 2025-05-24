@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { MessageCircle, Send, Loader2 } from "lucide-react";
 import { Summary } from "@/types";
+import { FlashCards } from "./FlashCards";
 
 interface Message {
   role: "user" | "assistant";
@@ -25,6 +26,7 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showFlashCards, setShowFlashCards] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Enhanced response generation using summary context
@@ -209,53 +211,68 @@ export function ChatInterface({ summary }: ChatInterfaceProps) {
   }, [messages]);
 
   return (
-    <Card className="flex flex-col h-[400px]">
-      <div className="flex items-center gap-2 p-4 border-b">
-        <MessageCircle className="w-5 h-5" />
-        <h3 className="font-semibold">Chat about this summary</h3>
-      </div>
-      
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 space-y-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}
+    <div className="space-y-4">
+      <Card className="flex flex-col h-[400px]">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-5 h-5" />
+            <h3 className="font-semibold">Chat about this summary</h3>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowFlashCards(!showFlashCards)}
           >
+            {showFlashCards ? "Hide" : "Show"} Flash Cards
+          </Button>
+        </div>
+        
+        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 space-y-4">
+          {messages.map((message, index) => (
             <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground ml-auto"
-                  : "bg-muted"
+              key={index}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {message.content}
+              <div
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  message.role === "user"
+                    ? "bg-primary text-primary-foreground ml-auto"
+                    : "bg-muted"
+                }`}
+              >
+                {message.content}
+              </div>
             </div>
-          </div>
-        ))}
-      </ScrollArea>
+          ))}
+        </ScrollArea>
+        
+        <div className="p-4 border-t flex gap-2">
+          <Input
+            placeholder="Ask a question about this summary..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            disabled={isLoading}
+          />
+          <Button
+            onClick={handleSendMessage}
+            disabled={isLoading}
+            className="shrink-0"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </Card>
       
-      <div className="p-4 border-t flex gap-2">
-        <Input
-          placeholder="Ask a question about this summary..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-          disabled={isLoading}
-        />
-        <Button
-          onClick={handleSendMessage}
-          disabled={isLoading}
-          className="shrink-0"
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </Button>
-      </div>
-    </Card>
+      {showFlashCards && (
+        <FlashCards summary={summary} />
+      )}
+    </div>
   );
 }
