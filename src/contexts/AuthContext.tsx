@@ -25,17 +25,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(initialState);
 
   useEffect(() => {
-    // Check if the user is already logged in
-    const loadUser = () => {
-      const user = authService.getCurrentUser();
+    // Initialize auth state and listen for changes
+    const initAuth = async () => {
+      try {
+        const user = authService.getCurrentUser();
+        setState({
+          user,
+          isAuthenticated: !!user,
+          isLoading: false,
+        });
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        setState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+        });
+      }
+    };
+
+    initAuth();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = authService.onAuthStateChange((user) => {
       setState({
         user,
         isAuthenticated: !!user,
         isLoading: false,
       });
-    };
+    });
 
-    loadUser();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

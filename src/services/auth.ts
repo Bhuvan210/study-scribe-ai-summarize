@@ -1,123 +1,132 @@
 
 import { User } from "@/types";
+import { supabase } from "./supabase";
 
-// Simulated authentication service
+// Real authentication service using Supabase
 class AuthService {
-  // Store the current user in local storage for persistence
-  private static USER_KEY = "study_scribe_user";
-  
   async login(email: string, password: string): Promise<User> {
-    // This is a mock implementation for demo purposes
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // In a real app, this would validate credentials against a backend
-        if (email && password.length >= 8) {
-          const user = { 
-            id: crypto.randomUUID(), 
-            email,
-            isVerified: true,
-            name: email.split("@")[0],
-            createdAt: new Date().toISOString()
-          };
-          localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
-          resolve(user);
-        } else {
-          reject(new Error("Invalid email or password"));
-        }
-      }, 1000);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error("Login failed");
+    }
+
+    return this.mapSupabaseUser(data.user);
   }
   
   async googleAuth(): Promise<User> {
-    // This is a mock implementation for Google Auth with verification
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // In a real app, this would integrate with the Google OAuth API
-        // And verification would happen through Google's authentication process
-        const randomEmail = `user${Math.floor(Math.random() * 10000)}@gmail.com`;
-        const randomName = `User ${Math.floor(Math.random() * 10000)}`;
-        
-        const user = { 
-          id: crypto.randomUUID(), 
-          email: randomEmail,
-          isVerified: true, // Google accounts are considered verified
-          name: randomName,
-          profilePicture: `https://ui-avatars.com/api/?name=${encodeURIComponent(randomName)}&background=random`,
-          createdAt: new Date().toISOString()
-        };
-        
-        localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
-        resolve(user);
-      }, 1000);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}`,
+      }
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // For OAuth, we need to handle the redirect flow
+    // The user will be available after the redirect
+    throw new Error("Redirecting to Google...");
   }
   
   async register(email: string, password: string): Promise<User> {
-    // This is a mock implementation for demo purposes
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // In a real app, this would register the user with a backend
-        if (email && password.length >= 8) {
-          const user = { 
-            id: crypto.randomUUID(), 
-            email,
-            isVerified: false, // Regular registration needs verification
-            name: email.split("@")[0],
-            createdAt: new Date().toISOString()
-          };
-          localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
-          resolve(user);
-        } else {
-          reject(new Error("Invalid email or password"));
-        }
-      }, 1000);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error("Registration failed");
+    }
+
+    return this.mapSupabaseUser(data.user);
   }
   
   async verifyEmail(verificationCode: string): Promise<boolean> {
-    // In a real app, this would validate the verification code against a backend
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const user = this.getCurrentUser();
-        if (user && !user.isVerified) {
-          user.isVerified = true;
-          localStorage.setItem(AuthService.USER_KEY, JSON.stringify(user));
-          resolve(true);
-        } else {
-          resolve(false);
-        }
-      }, 500);
-    });
+    // Supabase handles email verification through email links
+    // This method can be used for custom verification flows if needed
+    return true;
   }
   
   async logout(): Promise<void> {
-    // Remove the user from local storage
-    localStorage.removeItem(AuthService.USER_KEY);
-    return Promise.resolve();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      throw new Error(error.message);
+    }
   }
   
   getCurrentUser(): User | null {
-    const userJson = localStorage.getItem(AuthService.USER_KEY);
-    return userJson ? JSON.parse(userJson) : null;
+    // Get current user from Supabase session
+    const { data: { user } } = supabase.auth.getUser();
+    return user ? this.mapSupabaseUser(user) : null;
   }
   
   async resetPassword(email: string): Promise<void> {
-    // In a real app, this would trigger a password reset email
-    return Promise.resolve();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 
   async updateProfile(userData: Partial<User>): Promise<User> {
-    return new Promise((resolve, reject) => {
-      const currentUser = this.getCurrentUser();
-      if (!currentUser) {
-        reject(new Error("No user logged in"));
-        return;
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        name: userData.name,
+        bio: userData.bio,
+        location: userData.location,
+        phone: userData.phone,
+        website: userData.website,
       }
-
-      const updatedUser = { ...currentUser, ...userData };
-      localStorage.setItem(AuthService.USER_KEY, JSON.stringify(updatedUser));
-      resolve(updatedUser);
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data.user) {
+      throw new Error("Profile update failed");
+    }
+
+    return this.mapSupabaseUser(data.user);
+  }
+
+  // Listen to auth state changes
+  onAuthStateChange(callback: (user: User | null) => void) {
+    return supabase.auth.onAuthStateChange((event, session) => {
+      const user = session?.user ? this.mapSupabaseUser(session.user) : null;
+      callback(user);
+    });
+  }
+
+  private mapSupabaseUser(supabaseUser: any): User {
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || '',
+      isVerified: supabaseUser.email_confirmed_at ? true : false,
+      profilePicture: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture,
+      createdAt: supabaseUser.created_at,
+      bio: supabaseUser.user_metadata?.bio,
+      location: supabaseUser.user_metadata?.location,
+      phone: supabaseUser.user_metadata?.phone,
+      website: supabaseUser.user_metadata?.website,
+    };
   }
 }
 
