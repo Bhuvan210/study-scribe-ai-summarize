@@ -4,7 +4,11 @@ const FONT_CLASSES = [
   "font-open-sans", 
   "font-lato",
   "font-playfair",
-  "font-merriweather"
+  "font-merriweather",
+  "font-times",
+  "font-georgia",
+  "font-crimson",
+  "font-source-sans"
 ];
 
 export const initializeFontSettings = () => {

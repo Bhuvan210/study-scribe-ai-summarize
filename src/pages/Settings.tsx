@@ -15,8 +15,12 @@ const FONT_OPTIONS = [
   { value: "roboto", label: "Roboto", class: "font-roboto" },
   { value: "open-sans", label: "Open Sans", class: "font-open-sans" },
   { value: "lato", label: "Lato", class: "font-lato" },
+  { value: "source-sans", label: "Source Sans Pro", class: "font-source-sans" },
+  { value: "times", label: "Times New Roman", class: "font-times" },
+  { value: "georgia", label: "Georgia", class: "font-georgia" },
   { value: "playfair", label: "Playfair Display", class: "font-playfair" },
   { value: "merriweather", label: "Merriweather", class: "font-merriweather" },
+  { value: "crimson", label: "Crimson Text", class: "font-crimson" },
 ];
 
 export default function Settings() {

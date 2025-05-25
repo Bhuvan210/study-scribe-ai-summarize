@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -25,6 +24,10 @@ export default {
         'lato': ['Lato', 'sans-serif'],
         'playfair': ['Playfair Display', 'serif'],
         'merriweather': ['Merriweather', 'serif'],
+        'times': ['Times New Roman', 'Times', 'serif'],
+        'georgia': ['Georgia', 'serif'],
+        'crimson': ['Crimson Text', 'serif'],
+        'source-sans': ['Source Sans Pro', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
