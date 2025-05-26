@@ -24,10 +24,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(initialState);
 
   useEffect(() => {
+    console.log("AuthProvider: Initializing auth state");
+    
     // Initialize auth state and listen for changes
     const initAuth = async () => {
       try {
+        console.log("AuthProvider: Getting current user");
         const user = await authService.getCurrentUser();
+        console.log("AuthProvider: Current user result:", user);
+        
         setState({
           user,
           isAuthenticated: !!user,
@@ -46,17 +51,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
 
     // Listen for auth state changes
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      setState({
-        user,
-        isAuthenticated: !!user,
-        isLoading: false,
+    try {
+      const { data: { subscription } } = authService.onAuthStateChange((user) => {
+        console.log("AuthProvider: Auth state changed:", user);
+        setState({
+          user,
+          isAuthenticated: !!user,
+          isLoading: false,
+        });
       });
-    });
 
-    return () => {
-      subscription?.unsubscribe();
-    };
+      return () => {
+        subscription?.unsubscribe();
+      };
+    } catch (error) {
+      console.error("AuthProvider: Error setting up auth listener:", error);
+    }
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -171,6 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     verifyEmail,
     updateProfile,
   };
+
+  console.log("AuthProvider: Rendering with state:", state);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
