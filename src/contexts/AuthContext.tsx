@@ -1,4 +1,3 @@
-
 import { ReactNode, createContext, useContext, useEffect, useState } from "react";
 import { AuthState, User } from "@/types";
 import { authService } from "@/services/auth";
@@ -28,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Initialize auth state and listen for changes
     const initAuth = async () => {
       try {
-        const user = authService.getCurrentUser();
+        const user = await authService.getCurrentUser();
         setState({
           user,
           isAuthenticated: !!user,
@@ -113,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const success = await authService.verifyEmail(code);
       if (success) {
-        const user = authService.getCurrentUser();
+        const user = await authService.getCurrentUser();
         setState({
           user,
           isAuthenticated: !!user,

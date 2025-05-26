@@ -68,9 +68,15 @@ class AuthService {
     }
   }
   
-  getCurrentUser(): User | null {
+  async getCurrentUser(): Promise<User | null> {
     // Get current user from Supabase session
-    const { data: { user } } = supabase.auth.getUser();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (error) {
+      console.error("Error getting current user:", error);
+      return null;
+    }
+    
     return user ? this.mapSupabaseUser(user) : null;
   }
   
