@@ -69,15 +69,19 @@ class AuthService {
   }
   
   async getCurrentUser(): Promise<User | null> {
-    // Get current user from Supabase session
-    const { data: { user }, error } = await supabase.auth.getUser();
-    
-    if (error) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) {
+        console.error("Error getting current user:", error);
+        return null;
+      }
+      
+      return user ? this.mapSupabaseUser(user) : null;
+    } catch (error) {
       console.error("Error getting current user:", error);
       return null;
     }
-    
-    return user ? this.mapSupabaseUser(user) : null;
   }
   
   async resetPassword(email: string): Promise<void> {
