@@ -46,6 +46,8 @@ import { UrlSummarizer } from "@/components/integrations/UrlSummarizer";
 import { TextAnalysis } from "@/components/summary/TextAnalysis";
 import { PdfExport } from "@/components/summary/PdfExport";
 import { SharingOptions } from "@/components/summary/SharingOptions";
+import { FileMetadata } from "@/components/summary/FileMetadata";
+import { FileAnalysisService } from "@/services/fileAnalysis";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -66,6 +68,7 @@ export default function Summarizer() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileMetadata, setFileMetadata] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("paste");
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -164,20 +167,21 @@ export default function Summarizer() {
     setUploadedFile(file);
     
     try {
-      if (file.type === "text/plain") {
-        const text = await file.text();
-        form.setValue("text", text);
-      } else {
-        setTimeout(() => {
-          form.setValue("text", `This is sample text extracted from ${file.name}. In a real application, we would parse the actual content of ${file.type === "application/pdf" ? "PDF" : "DOCX"} files.`);
-        }, 1000);
-      }
+      const analysis = await FileAnalysisService.analyzeFile(file);
+      
+      form.setValue("text", analysis.content);
+      setFileMetadata(analysis.metadata);
+      
+      // Show analysis summary in toast
+      const summaryText = FileAnalysisService.generateAnalysisSummary(analysis.metadata);
+      console.log("File Analysis:", summaryText);
       
       toast({
-        title: "File uploaded",
-        description: `Successfully processed ${file.name}`,
+        title: "File analyzed successfully",
+        description: `Processed ${file.name} - ${analysis.metadata.wordCount} words detected`,
       });
     } catch (error) {
+      console.error("File analysis error:", error);
       toast({
         title: "File processing failed",
         description: "There was an error processing your file. Please try again.",
@@ -406,11 +410,16 @@ export default function Summarizer() {
                       </div>
                     )}
 
+                    {fileMetadata && (
+                      <FileMetadata metadata={fileMetadata} />
+                    )}
+
                     {form.watch("text") && (
                       <div className="space-y-4">
                         <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted">
                           <p className="text-sm text-foreground break-all">
-                            {form.watch("text")}
+                            {form.watch("text").substring(0, 200)}
+                            {form.watch("text").length > 200 && "..."}
                           </p>
                         </div>
 
