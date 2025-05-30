@@ -31,10 +31,21 @@ class GeminiService {
       const lengthInstruction = this.getLengthInstruction(params.lengthType, params.lengthValue);
       
       const prompt = `
-        Summarize the following text. ${lengthInstruction}
+        You are an expert summarizer. Create a comprehensive and accurate summary of the following text. 
+        
+        Requirements:
+        - ${lengthInstruction}
+        - Maintain accuracy and capture all key points, themes, and important details
+        - Use clear, well-structured paragraphs
+        - Preserve the tone and context of the original text
+        - Include specific examples, data, or quotes when relevant
+        - Ensure the summary is coherent and flows logically
+        - Do not add information not present in the original text
         
         Text to summarize:
         "${params.text}"
+        
+        Please provide a detailed and accurate summary that captures the essence and important details of the text:
       `;
 
       const response = await fetch(`${this.API_URL}?key=${apiKey}`, {
@@ -81,15 +92,15 @@ class GeminiService {
   private getLengthInstruction(lengthType: string, lengthValue: string | number): string {
     switch (lengthType) {
       case 'short':
-        return 'Make the summary very concise, about 10% of the original length.';
+        return 'Create a concise but comprehensive summary that captures the main points in about 150-300 words. Focus on the most important themes and key details.';
       case 'medium':
-        return 'Create a moderate summary, about 30% of the original length.';
+        return 'Create a detailed summary that thoroughly covers all important points, themes, and supporting details in about 300-600 words. Include context and examples where relevant.';
       case 'long':
-        return 'Provide a detailed summary, about 50% of the original length.';
+        return 'Create an extensive and comprehensive summary that captures all major and minor points, themes, arguments, and supporting details in about 600-1000 words. Include specific examples, data, and maintain the original structure.';
       case 'percentage':
-        return `Make the summary approximately ${lengthValue}% of the original length.`;
+        return `Create a comprehensive summary that is approximately ${lengthValue}% of the original length while maintaining accuracy and including all important details and context.`;
       default:
-        return 'Create a moderate summary, about 30% of the original length.';
+        return 'Create a detailed summary that thoroughly covers all important points, themes, and supporting details in about 300-600 words. Include context and examples where relevant.';
     }
   }
 }

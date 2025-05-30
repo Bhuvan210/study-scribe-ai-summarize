@@ -34,8 +34,8 @@ class SummaryService {
       setTimeout(() => {
         const { text, lengthType, lengthValue } = params;
         
-        // Create a simulated summary
-        const summaryText = this.createMockSummary(text, lengthType, lengthValue);
+        // Create a more comprehensive mock summary
+        const summaryText = this.createImprovedMockSummary(text, lengthType, lengthValue);
         
         const summary: Summary = {
           id: crypto.randomUUID(),
@@ -76,57 +76,49 @@ class SummaryService {
     localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(summaries));
   }
 
-  // Helper method to create a mock summary (legacy method)
-  private createMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
-    const words = text.split(/\s+/);
-    let percentToKeep = 0.3; // Default to medium length (30%)
-    
-    // Determine percentage based on length type
-    if (lengthType === 'short') percentToKeep = 0.1;
-    else if (lengthType === 'medium') percentToKeep = 0.3;
-    else if (lengthType === 'long') percentToKeep = 0.5;
-    else if (lengthType === 'percentage' && typeof lengthValue === 'number') {
-      percentToKeep = lengthValue / 100;
-    }
-    
-    // Select a subset of words based on the desired percentage
-    const numWords = Math.max(3, Math.floor(words.length * percentToKeep));
-    let summaryText = '';
-    
-    // Extract sentences to create a coherent summary
+  // Improved mock summary method for better length and accuracy
+  private createImprovedMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    const numSentences = Math.max(1, Math.ceil(sentences.length * percentToKeep));
+    const words = text.split(/\s+/);
     
-    // Select sentences from the beginning, middle, and end for better representation
-    const selectedSentences = [];
-    if (numSentences >= 3) {
-      selectedSentences.push(sentences[0]); // First sentence
-      
-      // Some middle sentences
-      const middleStart = Math.floor(sentences.length * 0.3);
-      const middleEnd = Math.floor(sentences.length * 0.7);
-      const middleStep = Math.max(1, Math.floor((middleEnd - middleStart) / (numSentences - 2)));
-      
-      for (let i = middleStart; i < middleEnd; i += middleStep) {
-        if (selectedSentences.length < numSentences - 1) {
-          selectedSentences.push(sentences[i]);
-        }
-      }
-      
-      // Last sentence
-      if (selectedSentences.length < numSentences) {
-        selectedSentences.push(sentences[sentences.length - 1]);
-      }
-    } else {
-      // If we need fewer sentences, just take from the beginning
-      for (let i = 0; i < numSentences && i < sentences.length; i++) {
-        selectedSentences.push(sentences[i]);
-      }
+    let targetLength = 0.3; // Default to medium length (30%)
+    
+    // Determine target length based on type
+    if (lengthType === 'short') targetLength = 0.25;
+    else if (lengthType === 'medium') targetLength = 0.4;
+    else if (lengthType === 'long') targetLength = 0.6;
+    else if (lengthType === 'percentage' && typeof lengthValue === 'number') {
+      targetLength = Math.min(0.8, lengthValue / 100); // Cap at 80% for better quality
     }
     
-    summaryText = selectedSentences.join(' ');
+    const targetSentenceCount = Math.max(3, Math.floor(sentences.length * targetLength));
+    const selectedSentences = [];
     
-    return summaryText.trim();
+    // Better sentence selection for more comprehensive summaries
+    if (sentences.length <= targetSentenceCount) {
+      return sentences.join(' ').trim();
+    }
+    
+    // Select first sentence (introduction)
+    if (sentences.length > 0) selectedSentences.push(sentences[0]);
+    
+    // Select evenly distributed sentences from the middle
+    const step = Math.max(1, Math.floor(sentences.length / targetSentenceCount));
+    for (let i = step; i < sentences.length - 1 && selectedSentences.length < targetSentenceCount - 1; i += step) {
+      selectedSentences.push(sentences[i]);
+    }
+    
+    // Add last sentence if we have room and it exists
+    if (selectedSentences.length < targetSentenceCount && sentences.length > 1) {
+      selectedSentences.push(sentences[sentences.length - 1]);
+    }
+    
+    let summaryText = selectedSentences.join(' ').trim();
+    
+    // Add a note about using fallback method
+    summaryText += "\n\n[Note: This summary was generated using a basic fallback method. For better accuracy and quality, please add your Gemini API key in the Profile settings.]";
+    
+    return summaryText;
   }
 }
 
