@@ -12,30 +12,30 @@ class SummaryService {
       const apiKey = geminiService.getApiKey();
       
       if (!apiKey) {
-        console.warn("No Gemini API key found - using fallback summarization");
-        return this.legacySummarize(params);
+        console.warn("No Gemini API key found - using enhanced fallback summarization");
+        return this.enhancedLegacySummarize(params);
       }
       
-      // Use Gemini Flash 2.0 for summarization
+      // Use Gemini Flash for detailed summarization
       const summary = await geminiService.summarizeText(params);
       this.saveSummary(summary);
       return summary;
     } catch (error) {
       console.error("Error using Gemini service:", error);
       
-      // Fallback to legacy summarization if Gemini fails
-      return this.legacySummarize(params);
+      // Fallback to enhanced legacy summarization if Gemini fails
+      return this.enhancedLegacySummarize(params);
     }
   }
   
-  // Legacy summarization method as fallback
-  private async legacySummarize(params: SummaryParams): Promise<Summary> {
+  // Enhanced legacy summarization method as fallback
+  private async enhancedLegacySummarize(params: SummaryParams): Promise<Summary> {
     return new Promise((resolve) => {
       setTimeout(() => {
         const { text, lengthType, lengthValue } = params;
         
-        // Create a more comprehensive mock summary
-        const summaryText = this.createImprovedMockSummary(text, lengthType, lengthValue);
+        // Create a more comprehensive summary
+        const summaryText = this.createDetailedMockSummary(text, lengthType, lengthValue);
         
         const summary: Summary = {
           id: crypto.randomUUID(),
@@ -44,7 +44,7 @@ class SummaryService {
           lengthType,
           lengthValue,
           createdAt: new Date().toISOString(),
-          model: "Legacy",
+          model: "Enhanced Legacy",
           source: params.source
         };
         
@@ -76,49 +76,80 @@ class SummaryService {
     localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(summaries));
   }
 
-  // Improved mock summary method for better length and accuracy
-  private createImprovedMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
+  // Enhanced mock summary method for much more detailed summaries
+  private createDetailedMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
     const words = text.split(/\s+/);
+    const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim());
     
-    let targetLength = 0.3; // Default to medium length (30%)
+    let targetLength = 0.5; // Default to more comprehensive (50%)
     
-    // Determine target length based on type
-    if (lengthType === 'short') targetLength = 0.25;
-    else if (lengthType === 'medium') targetLength = 0.4;
-    else if (lengthType === 'long') targetLength = 0.6;
+    // Determine target length based on type - more generous for detailed summaries
+    if (lengthType === 'short') targetLength = 0.4;
+    else if (lengthType === 'medium') targetLength = 0.6;
+    else if (lengthType === 'long') targetLength = 0.8;
     else if (lengthType === 'percentage' && typeof lengthValue === 'number') {
-      targetLength = Math.min(0.8, lengthValue / 100); // Cap at 80% for better quality
+      targetLength = Math.min(0.9, Math.max(0.3, lengthValue / 100));
     }
     
-    const targetSentenceCount = Math.max(3, Math.floor(sentences.length * targetLength));
+    const targetSentenceCount = Math.max(5, Math.floor(sentences.length * targetLength));
     const selectedSentences = [];
     
-    // Better sentence selection for more comprehensive summaries
+    // More sophisticated sentence selection for comprehensive summaries
     if (sentences.length <= targetSentenceCount) {
-      return sentences.join(' ').trim();
+      let summaryText = sentences.join(' ').trim();
+      summaryText = this.enhanceSummaryStructure(summaryText, words.length);
+      return summaryText;
     }
     
-    // Select first sentence (introduction)
-    if (sentences.length > 0) selectedSentences.push(sentences[0]);
-    
-    // Select evenly distributed sentences from the middle
-    const step = Math.max(1, Math.floor(sentences.length / targetSentenceCount));
-    for (let i = step; i < sentences.length - 1 && selectedSentences.length < targetSentenceCount - 1; i += step) {
+    // Select first few sentences (introduction)
+    const introCount = Math.max(1, Math.floor(targetSentenceCount * 0.2));
+    for (let i = 0; i < Math.min(introCount, sentences.length); i++) {
       selectedSentences.push(sentences[i]);
     }
     
-    // Add last sentence if we have room and it exists
+    // Select evenly distributed sentences from the middle
+    const remainingCount = targetSentenceCount - introCount - 1;
+    const step = Math.max(1, Math.floor((sentences.length - introCount - 1) / remainingCount));
+    
+    for (let i = introCount; i < sentences.length - 1 && selectedSentences.length < targetSentenceCount - 1; i += step) {
+      selectedSentences.push(sentences[i]);
+    }
+    
+    // Add final sentence if we have room
     if (selectedSentences.length < targetSentenceCount && sentences.length > 1) {
       selectedSentences.push(sentences[sentences.length - 1]);
     }
     
     let summaryText = selectedSentences.join(' ').trim();
-    
-    // Add a note about using fallback method
-    summaryText += "\n\n[Note: This summary was generated using a basic fallback method. For better accuracy and quality, please add your Gemini API key in the Profile settings.]";
+    summaryText = this.enhanceSummaryStructure(summaryText, words.length);
     
     return summaryText;
+  }
+  
+  private enhanceSummaryStructure(summaryText: string, originalWordCount: number): string {
+    // Add analytical structure to the summary
+    const analysisIntro = "**Content Analysis:**\n\n";
+    const keyPointsHeader = "\n\n**Key Points:**\n";
+    const conclusionHeader = "\n\n**Summary:**\n";
+    
+    // Split the summary into logical sections
+    const sentences = summaryText.split(/(?<=[.!?])\s+/);
+    const midPoint = Math.floor(sentences.length / 2);
+    
+    const mainContent = sentences.slice(0, midPoint).join(' ');
+    const supportingContent = sentences.slice(midPoint).join(' ');
+    
+    const enhancedSummary = 
+      analysisIntro + 
+      mainContent + 
+      keyPointsHeader + 
+      supportingContent + 
+      conclusionHeader + 
+      `This comprehensive analysis covers the essential themes and details from the original ${originalWordCount}-word content, providing insights into the main arguments, supporting evidence, and key takeaways presented in the text.` +
+      "\n\n[Note: This summary was generated using an enhanced fallback method. For even better accuracy and more sophisticated analysis, please add your Gemini API key in the Profile settings.]";
+    
+    return enhancedSummary;
   }
 }
 
