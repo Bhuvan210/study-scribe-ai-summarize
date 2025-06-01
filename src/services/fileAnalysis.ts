@@ -1,3 +1,4 @@
+
 export interface FileMetadata {
   name: string;
   size: number;
@@ -70,16 +71,21 @@ export class FileAnalysisService {
       // Import PDF.js dynamically
       const pdfjsLib = await import('pdfjs-dist');
       
-      // Use a different worker configuration approach
-      // Set worker to null to use the main thread for processing
-      pdfjsLib.GlobalWorkerOptions.workerSrc = null;
+      // Use built-in worker or disable worker entirely
+      // This avoids the "Invalid workerSrc type" error
+      if (typeof pdfjsLib.GlobalWorkerOptions !== 'undefined') {
+        // Disable worker to use main thread processing
+        delete (pdfjsLib.GlobalWorkerOptions as any).workerSrc;
+      }
       
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ 
         data: arrayBuffer,
-        useWorkerFetch: false,
+        // Disable worker-related features that might cause issues
+        disableWorker: true,
         isEvalSupported: false,
-        useSystemFonts: true
+        useSystemFonts: true,
+        verbosity: 0 // Reduce logging
       }).promise;
       
       let fullText = '';
