@@ -1,3 +1,8 @@
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 export interface FileMetadata {
   name: string;
   size: number;
@@ -9,6 +14,7 @@ export interface FileMetadata {
   readingTime?: number;
   language?: string;
   encoding?: string;
+  pageCount?: number;
 }
 
 export class FileAnalysisService {
@@ -35,11 +41,12 @@ export class FileAnalysisService {
         };
       } else if (file.type === "application/pdf") {
         content = await this.extractPdfContent(file);
+        const textAnalysis = this.analyzeTextContent(content);
         return {
           content,
           metadata: {
             ...baseMetadata,
-            ...this.analyzeTextContent(content),
+            ...textAnalysis,
             encoding: 'PDF Binary'
           }
         };
@@ -62,55 +69,82 @@ export class FileAnalysisService {
     }
   }
 
-  // Extract content from PDF files
+  // Extract content from PDF files using PDF.js
   private static async extractPdfContent(file: File): Promise<string> {
     try {
-      // For now, we'll use a simplified approach since pdf-parse requires Node.js environment
-      // In a real browser environment, we'd need to use PDF.js differently
       const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
-      // This is a fallback - in production you'd want to set up PDF.js properly
-      // or use a server-side solution for PDF parsing
-      return `Content extracted from ${file.name}. 
-
-Note: This is a simplified PDF extraction. For full PDF content extraction, please consider:
-1. Using a server-side PDF processing service
-2. Converting the PDF to text format before uploading
-3. Using specialized PDF.js configuration for browser-based parsing
+      let fullText = '';
+      
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Combine text items into readable content
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        
+        fullText += pageText + '\n\n';
+      }
+      
+      if (fullText.trim().length === 0) {
+        return `PDF file "${file.name}" was processed but no readable text was found. This might be because:
+- The PDF contains only images or scanned content
+- The PDF is password-protected
+- The PDF uses non-standard encoding
 
 File details:
 - Name: ${file.name}
 - Size: ${this.formatFileSize(file.size)}
-- Type: PDF Document
+- Pages: ${pdf.numPages}
 
-To get better results, please paste the text content directly or convert your PDF to a text file.`;
+For better results, try:
+1. Converting the PDF to text format
+2. Using OCR software if it contains scanned images
+3. Copying and pasting the text directly from the PDF viewer`;
+      }
+      
+      return fullText.trim();
     } catch (error) {
       console.error('PDF extraction error:', error);
-      throw new Error('Failed to extract PDF content. Please try converting to text format.');
+      throw new Error(`Failed to extract PDF content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  // Extract content from DOCX files
+  // Extract content from DOCX files using mammoth
   private static async extractDocxContent(file: File): Promise<string> {
     try {
-      // Similar to PDF, DOCX parsing in browser is complex
-      // This is a fallback implementation
-      return `Content extracted from ${file.name}.
-
-Note: This is a simplified DOCX extraction. For full DOCX content extraction, please consider:
-1. Using a server-side document processing service
-2. Converting the DOCX to text format before uploading
-3. Using specialized mammoth.js configuration for browser-based parsing
+      // Import mammoth dynamically to avoid build issues
+      const mammoth = await import('mammoth');
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      
+      if (result.value.trim().length === 0) {
+        return `DOCX file "${file.name}" was processed but no readable text was found.
 
 File details:
 - Name: ${file.name}
 - Size: ${this.formatFileSize(file.size)}
-- Type: Word Document
 
-To get better results, please paste the text content directly or save your document as a text file.`;
+For better results, try:
+1. Saving the document as a .txt file
+2. Copying and pasting the text directly from the document
+3. Ensuring the document contains actual text content (not just images)`;
+      }
+      
+      // Log any conversion messages/warnings
+      if (result.messages.length > 0) {
+        console.log('DOCX conversion messages:', result.messages);
+      }
+      
+      return result.value;
     } catch (error) {
       console.error('DOCX extraction error:', error);
-      throw new Error('Failed to extract DOCX content. Please try converting to text format.');
+      throw new Error(`Failed to extract DOCX content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
