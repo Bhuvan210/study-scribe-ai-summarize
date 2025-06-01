@@ -1,7 +1,3 @@
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export interface FileMetadata {
   name: string;
@@ -72,6 +68,12 @@ export class FileAnalysisService {
   // Extract content from PDF files using PDF.js
   private static async extractPdfContent(file: File): Promise<string> {
     try {
+      // Import PDF.js dynamically
+      const pdfjsLib = await import('pdfjs-dist');
+      
+      // Configure PDF.js worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
