@@ -1,5 +1,3 @@
-import * as pdfjsLib from 'pdfjs-dist';
-
 export interface FileMetadata {
   name: string;
   size: number;
