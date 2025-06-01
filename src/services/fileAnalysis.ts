@@ -1,4 +1,3 @@
-
 export interface FileMetadata {
   name: string;
   size: number;
@@ -65,17 +64,23 @@ export class FileAnalysisService {
     }
   }
 
-  // Extract content from PDF files using PDF.js
+  // Extract content from PDF files using PDF.js with better error handling
   private static async extractPdfContent(file: File): Promise<string> {
     try {
       // Import PDF.js dynamically
       const pdfjsLib = await import('pdfjs-dist');
       
-      // Configure PDF.js worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Use a different worker configuration approach
+      // Set worker to null to use the main thread for processing
+      pdfjsLib.GlobalWorkerOptions.workerSrc = null;
       
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      }).promise;
       
       let fullText = '';
       
@@ -112,7 +117,25 @@ For better results, try:
       return fullText.trim();
     } catch (error) {
       console.error('PDF extraction error:', error);
-      throw new Error(`Failed to extract PDF content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // If PDF processing fails, provide a helpful fallback message
+      return `PDF file "${file.name}" could not be processed automatically. 
+
+File details:
+- Name: ${file.name}
+- Size: ${this.formatFileSize(file.size)}
+
+This might be due to:
+- Complex PDF formatting
+- Encrypted/protected PDF
+- Network connectivity issues
+
+Alternative options:
+1. Try converting the PDF to a text file (.txt)
+2. Copy and paste the text directly from the PDF
+3. Use a different PDF that contains selectable text
+
+Error details: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
 
