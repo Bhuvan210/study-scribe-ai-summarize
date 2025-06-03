@@ -72,13 +72,20 @@ class AuthService {
       const { data: { user }, error } = await supabase.auth.getUser();
       
       if (error) {
+        // Check if this is just a missing session (normal for logged-out users)
+        if (error.message === 'Auth session missing!') {
+          console.info('No active session found - user is not logged in');
+          return null;
+        }
+        // Log other errors as actual errors
         console.error("Error getting current user:", error);
         return null;
       }
       
       return user ? this.mapSupabaseUser(user) : null;
     } catch (error) {
-      console.error("Error getting current user:", error);
+      // Handle unexpected errors
+      console.error("Unexpected error getting current user:", error);
       return null;
     }
   }
