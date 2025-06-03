@@ -1,8 +1,9 @@
 
 import { Summary, SummaryParams } from "@/types";
 import { geminiService } from "./gemini";
+import { fileAnalysisService } from "./fileAnalysis";
 
-// Summarization service
+// Enhanced summarization service
 class SummaryService {
   private static HISTORY_KEY = "study_scribe_summaries";
 
@@ -16,7 +17,16 @@ class SummaryService {
         return this.legacySummarize(params);
       }
       
-      // Use Gemini Flash 2.0 for summarization
+      // Validate text length
+      if (params.text.length < 10) {
+        throw new Error("Text is too short to summarize. Please provide at least 10 characters.");
+      }
+      
+      if (params.text.length > 100000) {
+        throw new Error("Text is too long. Please limit to 100,000 characters.");
+      }
+      
+      // Use Gemini Flash 1.5 for enhanced summarization
       const summary = await geminiService.summarizeText(params);
       this.saveSummary(summary);
       return summary;
@@ -27,6 +37,37 @@ class SummaryService {
       return this.legacySummarize(params);
     }
   }
+
+  async summarizeFile(file: File, lengthType: string, lengthValue: string | number): Promise<Summary> {
+    try {
+      console.log(`Starting file summarization for: ${file.name}`);
+      
+      // Analyze and extract text from file
+      const analysisResult = await fileAnalysisService.analyzeFile(file);
+      
+      console.log(`Extracted ${analysisResult.metadata.wordCount} words from ${file.name}`);
+      console.log(`Extraction quality: ${analysisResult.metadata.extractionQuality}`);
+      
+      // Create enhanced summary params with file metadata
+      const params: SummaryParams = {
+        text: analysisResult.text,
+        lengthType,
+        lengthValue,
+        source: `${file.name} (${analysisResult.metadata.fileType})`
+      };
+      
+      // Add file analysis context to the summary
+      const summary = await this.summarizeText(params);
+      
+      // Enhance summary with file metadata
+      summary.summaryText = `[File: ${file.name}, ${analysisResult.metadata.wordCount} words, ${analysisResult.metadata.extractionQuality} quality extraction]\n\n${summary.summaryText}`;
+      
+      return summary;
+    } catch (error) {
+      console.error("File summarization error:", error);
+      throw new Error(`Failed to summarize file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
   
   // Legacy summarization method as fallback
   private async legacySummarize(params: SummaryParams): Promise<Summary> {
@@ -34,8 +75,8 @@ class SummaryService {
       setTimeout(() => {
         const { text, lengthType, lengthValue } = params;
         
-        // Create a simulated summary
-        const summaryText = this.createMockSummary(text, lengthType, lengthValue);
+        // Create an enhanced mock summary
+        const summaryText = this.createEnhancedMockSummary(text, lengthType, lengthValue);
         
         const summary: Summary = {
           id: crypto.randomUUID(),
@@ -44,7 +85,7 @@ class SummaryService {
           lengthType,
           lengthValue,
           createdAt: new Date().toISOString(),
-          model: "Legacy",
+          model: "Enhanced Legacy",
           source: params.source
         };
         
@@ -55,13 +96,11 @@ class SummaryService {
   }
 
   async getSummaryHistory(): Promise<Summary[]> {
-    // Get saved summaries from local storage
     const savedSummaries = localStorage.getItem(SummaryService.HISTORY_KEY);
     return Promise.resolve(savedSummaries ? JSON.parse(savedSummaries) : []);
   }
 
   async deleteSummary(id: string): Promise<void> {
-    // Delete a summary from history
     const summaries = await this.getSummaryHistory();
     const updatedSummaries = summaries.filter(summary => summary.id !== id);
     localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(updatedSummaries));
@@ -69,19 +108,25 @@ class SummaryService {
   }
 
   private saveSummary(summary: Summary): void {
-    // Save summary to history
     const savedSummaries = localStorage.getItem(SummaryService.HISTORY_KEY);
     const summaries: Summary[] = savedSummaries ? JSON.parse(savedSummaries) : [];
-    summaries.unshift(summary); // Add new summary at the beginning
+    summaries.unshift(summary);
+    
+    // Limit history to 50 summaries
+    if (summaries.length > 50) {
+      summaries.splice(50);
+    }
+    
     localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(summaries));
   }
 
-  // Helper method to create a mock summary (legacy method)
-  private createMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
+  // Enhanced mock summary creation
+  private createEnhancedMockSummary(text: string, lengthType: string, lengthValue: string | number): string {
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
     const words = text.split(/\s+/);
-    let percentToKeep = 0.3; // Default to medium length (30%)
     
-    // Determine percentage based on length type
+    let percentToKeep = 0.3;
+    
     if (lengthType === 'short') percentToKeep = 0.1;
     else if (lengthType === 'medium') percentToKeep = 0.3;
     else if (lengthType === 'long') percentToKeep = 0.5;
@@ -89,44 +134,33 @@ class SummaryService {
       percentToKeep = lengthValue / 100;
     }
     
-    // Select a subset of words based on the desired percentage
-    const numWords = Math.max(3, Math.floor(words.length * percentToKeep));
-    let summaryText = '';
+    const targetSentences = Math.max(1, Math.ceil(sentences.length * percentToKeep));
     
-    // Extract sentences to create a coherent summary
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-    const numSentences = Math.max(1, Math.ceil(sentences.length * percentToKeep));
-    
-    // Select sentences from the beginning, middle, and end for better representation
+    // Select sentences strategically
     const selectedSentences = [];
-    if (numSentences >= 3) {
-      selectedSentences.push(sentences[0]); // First sentence
+    
+    // Always include first sentence
+    if (sentences.length > 0) {
+      selectedSentences.push(sentences[0]);
+    }
+    
+    // Select middle sentences
+    if (targetSentences > 2 && sentences.length > 2) {
+      const middleStart = Math.floor(sentences.length * 0.2);
+      const middleEnd = Math.floor(sentences.length * 0.8);
+      const step = Math.max(1, Math.floor((middleEnd - middleStart) / (targetSentences - 2)));
       
-      // Some middle sentences
-      const middleStart = Math.floor(sentences.length * 0.3);
-      const middleEnd = Math.floor(sentences.length * 0.7);
-      const middleStep = Math.max(1, Math.floor((middleEnd - middleStart) / (numSentences - 2)));
-      
-      for (let i = middleStart; i < middleEnd; i += middleStep) {
-        if (selectedSentences.length < numSentences - 1) {
-          selectedSentences.push(sentences[i]);
-        }
-      }
-      
-      // Last sentence
-      if (selectedSentences.length < numSentences) {
-        selectedSentences.push(sentences[sentences.length - 1]);
-      }
-    } else {
-      // If we need fewer sentences, just take from the beginning
-      for (let i = 0; i < numSentences && i < sentences.length; i++) {
+      for (let i = middleStart; i < middleEnd && selectedSentences.length < targetSentences - 1; i += step) {
         selectedSentences.push(sentences[i]);
       }
     }
     
-    summaryText = selectedSentences.join(' ');
+    // Include last sentence if we need more
+    if (selectedSentences.length < targetSentences && sentences.length > 1) {
+      selectedSentences.push(sentences[sentences.length - 1]);
+    }
     
-    return summaryText.trim();
+    return selectedSentences.join(' ').trim();
   }
 }
 

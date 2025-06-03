@@ -25,18 +25,11 @@ class GeminiService {
     }
 
     try {
-      console.log("Using Gemini Flash for summarization...");
+      console.log("Using Gemini Flash 1.5 for enhanced summarization...");
       console.log("API Key available:", !!apiKey);
 
-      const lengthInstruction = this.getLengthInstruction(params.lengthType, params.lengthValue);
+      const enhancedPrompt = this.buildEnhancedPrompt(params);
       
-      const prompt = `
-        Summarize the following text. ${lengthInstruction}
-        
-        Text to summarize:
-        "${params.text}"
-      `;
-
       const response = await fetch(`${this.API_URL}?key=${apiKey}`, {
         method: 'POST',
         headers: {
@@ -45,9 +38,25 @@ class GeminiService {
         body: JSON.stringify({
           contents: [{
             parts: [{
-              text: prompt
+              text: enhancedPrompt
             }]
-          }]
+          }],
+          generationConfig: {
+            temperature: 0.3,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048,
+          },
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+          ]
         })
       });
 
@@ -67,7 +76,7 @@ class GeminiService {
         lengthType: params.lengthType,
         lengthValue: params.lengthValue,
         createdAt: new Date().toISOString(),
-        model: "Gemini Flash 1.5",
+        model: "Gemini Flash 1.5 Enhanced",
         source: params.source
       };
 
@@ -78,18 +87,69 @@ class GeminiService {
     }
   }
 
-  private getLengthInstruction(lengthType: string, lengthValue: string | number): string {
+  private buildEnhancedPrompt(params: SummaryParams): string {
+    const { text, lengthType, lengthValue } = params;
+    
+    // Analyze text characteristics
+    const wordCount = text.split(/\s+/).length;
+    const hasStructure = text.includes('\n') || text.includes('•') || text.includes('-');
+    const isAcademic = /\b(research|study|analysis|conclusion|methodology|hypothesis)\b/i.test(text);
+    const isNews = /\b(reported|according to|breaking|update|sources)\b/i.test(text);
+    const isTechnical = /\b(implementation|algorithm|framework|architecture|protocol)\b/i.test(text);
+    
+    let contextualInstructions = "";
+    
+    if (isAcademic) {
+      contextualInstructions = "This appears to be academic content. Focus on key findings, methodology, and conclusions. Preserve important research terminology and statistical information.";
+    } else if (isNews) {
+      contextualInstructions = "This appears to be news content. Focus on the who, what, when, where, and why. Lead with the most important information.";
+    } else if (isTechnical) {
+      contextualInstructions = "This appears to be technical content. Preserve important technical terms, processes, and implementation details while making it accessible.";
+    } else {
+      contextualInstructions = "Focus on the main ideas, key points, and essential information while maintaining the original tone and context.";
+    }
+
+    const lengthInstruction = this.getEnhancedLengthInstruction(lengthType, lengthValue, wordCount);
+    
+    return `You are an expert summarization AI. Your task is to create a precise, contextually relevant summary that captures the essence of the provided text.
+
+CONTEXT ANALYSIS: ${contextualInstructions}
+
+LENGTH REQUIREMENTS: ${lengthInstruction}
+
+QUALITY GUIDELINES:
+- Maintain the original meaning and tone
+- Preserve critical details, names, dates, and numbers
+- Use clear, concise language
+- Ensure logical flow and coherence
+- Include key supporting evidence or examples when space allows
+- Avoid redundancy and filler words
+
+TEXT TO SUMMARIZE:
+"""
+${text}
+"""
+
+Please provide a high-quality summary that follows these guidelines:`;
+  }
+
+  private getEnhancedLengthInstruction(lengthType: string, lengthValue: string | number, originalWordCount: number): string {
     switch (lengthType) {
       case 'short':
-        return 'Make the summary very concise, about 10% of the original length.';
+        const shortTarget = Math.max(20, Math.floor(originalWordCount * 0.1));
+        return `Create a very concise summary of approximately ${shortTarget} words (about 10% of original length). Focus only on the most essential points.`;
       case 'medium':
-        return 'Create a moderate summary, about 30% of the original length.';
+        const mediumTarget = Math.max(50, Math.floor(originalWordCount * 0.3));
+        return `Create a moderate summary of approximately ${mediumTarget} words (about 30% of original length). Include main points and key supporting details.`;
       case 'long':
-        return 'Provide a detailed summary, about 50% of the original length.';
+        const longTarget = Math.max(100, Math.floor(originalWordCount * 0.5));
+        return `Create a detailed summary of approximately ${longTarget} words (about 50% of original length). Include comprehensive coverage of all major points and important details.`;
       case 'percentage':
-        return `Make the summary approximately ${lengthValue}% of the original length.`;
+        const percentTarget = Math.max(20, Math.floor(originalWordCount * (Number(lengthValue) / 100)));
+        return `Create a summary of approximately ${percentTarget} words (${lengthValue}% of original length). Adjust detail level accordingly.`;
       default:
-        return 'Create a moderate summary, about 30% of the original length.';
+        const defaultTarget = Math.max(50, Math.floor(originalWordCount * 0.3));
+        return `Create a moderate summary of approximately ${defaultTarget} words (about 30% of original length).`;
     }
   }
 }

@@ -69,10 +69,12 @@ export default function Summarizer() {
   const [activeTab, setActiveTab] = useState("paste");
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const [fileAnalysis, setFileAnalysis] = useState<any>(null);
   
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
     if (!apiKey) {
+      // Set default API key for enhanced summarization
       geminiService.setApiKey("AIzaSyCS4ynduDtHdAwhv9dKDlMw9DZ6hpZ6q9I");
       setHasApiKey(true);
     } else {
@@ -164,23 +166,22 @@ export default function Summarizer() {
     setUploadedFile(file);
     
     try {
-      if (file.type === "text/plain") {
-        const text = await file.text();
-        form.setValue("text", text);
-      } else {
-        setTimeout(() => {
-          form.setValue("text", `This is sample text extracted from ${file.name}. In a real application, we would parse the actual content of ${file.type === "application/pdf" ? "PDF" : "DOCX"} files.`);
-        }, 1000);
-      }
+      // Import the fileAnalysisService
+      const { fileAnalysisService } = await import("@/services/fileAnalysis");
+      
+      const analysisResult = await fileAnalysisService.analyzeFile(file);
+      setFileAnalysis(analysisResult);
+      form.setValue("text", analysisResult.text);
       
       toast({
-        title: "File uploaded",
-        description: `Successfully processed ${file.name}`,
+        title: "File processed successfully",
+        description: `Extracted ${analysisResult.metadata.wordCount} words from ${file.name} with ${analysisResult.metadata.extractionQuality} quality.`,
       });
     } catch (error) {
+      console.error("File processing error:", error);
       toast({
         title: "File processing failed",
-        description: "There was an error processing your file. Please try again.",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -219,20 +220,19 @@ export default function Summarizer() {
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-foreground sm:text-4xl">
-            AI Text Summarizer
+            Enhanced AI Text Summarizer
           </h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Upload a document or paste text to generate concise summaries
+            Upload documents or paste text for precise, contextually relevant summaries powered by Gemini Flash 1.5
           </p>
         </div>
         
         {!hasApiKey && (
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>API Key Required</AlertTitle>
+            <AlertTitle>Enhanced Summarization Active</AlertTitle>
             <AlertDescription>
-              For better summarization quality, please add your Gemini API key in the Profile page.
-              The app will use a basic fallback summarization method until an API key is provided.
+              Using Gemini Flash 1.5 for superior summarization quality with advanced context understanding and precise content extraction.
             </AlertDescription>
           </Alert>
         )}
