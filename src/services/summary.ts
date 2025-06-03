@@ -1,4 +1,3 @@
-
 import { Summary, SummaryParams } from "@/types";
 import { geminiService } from "./gemini";
 import { fileAnalysisService } from "./fileAnalysis";
@@ -51,7 +50,7 @@ class SummaryService {
       // Create enhanced summary params with file metadata
       const params: SummaryParams = {
         text: analysisResult.text,
-        lengthType,
+        lengthType: lengthType as "short" | "medium" | "long" | "percentage",
         lengthValue,
         source: `${file.name} (${analysisResult.metadata.fileType})`
       };
