@@ -3,12 +3,21 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { initializeFontSettings } from "./utils/fontSettings";
 
 // Initialize font settings before rendering
-initializeFontSettings();
+try {
+  const { initializeFontSettings } = await import("./utils/fontSettings");
+  initializeFontSettings();
+} catch (error) {
+  console.warn("Font settings initialization failed:", error);
+}
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <App />
   </StrictMode>
