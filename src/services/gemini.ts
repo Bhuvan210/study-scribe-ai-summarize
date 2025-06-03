@@ -3,7 +3,7 @@ import { SummaryParams, Summary } from "@/types";
 
 class GeminiService {
   private apiKey: string | null = null;
-  private API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-exp:generateContent";
+  private API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
 
   setApiKey(key: string) {
     this.apiKey = key;
@@ -25,7 +25,7 @@ class GeminiService {
     }
 
     try {
-      console.log("Using Gemini Flash 2.0 for advanced summarization...");
+      console.log("Using Gemini Flash 1.5 for summarization...");
       console.log("API Key available:", !!apiKey);
 
       const lengthInstruction = this.getLengthInstruction(params.lengthType, params.lengthValue);
@@ -119,7 +119,7 @@ class GeminiService {
         lengthType: params.lengthType,
         lengthValue: params.lengthValue,
         createdAt: new Date().toISOString(),
-        model: "Gemini Flash 2.0",
+        model: "Gemini Flash 1.5",
         source: params.source
       };
 

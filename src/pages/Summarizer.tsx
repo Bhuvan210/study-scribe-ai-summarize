@@ -234,9 +234,9 @@ export default function Summarizer() {
         {!hasApiKey && (
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Enhanced with Gemini Flash 2.0</AlertTitle>
+            <AlertTitle>Enhanced with Gemini Flash 1.5</AlertTitle>
             <AlertDescription>
-              This app now uses Gemini Flash 2.0 for superior summarization quality.
+              This app now uses Gemini Flash 1.5 for reliable summarization quality.
               For custom API key management, visit the Profile page.
             </AlertDescription>
           </Alert>
