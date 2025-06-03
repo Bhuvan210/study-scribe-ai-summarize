@@ -25,50 +25,16 @@ class GeminiService {
     }
 
     try {
-      console.log("Using Gemini Flash for detailed summarization...");
+      console.log("Using Gemini Flash for summarization...");
       console.log("API Key available:", !!apiKey);
 
       const lengthInstruction = this.getLengthInstruction(params.lengthType, params.lengthValue);
       
       const prompt = `
-        You are an expert analyst and summarizer. Your task is to create a comprehensive, detailed, and insightful summary that thoroughly analyzes the provided text.
-
-        ANALYSIS REQUIREMENTS:
-        1. **Main Themes & Key Points**: Identify and elaborate on all major themes, arguments, and central ideas
-        2. **Supporting Details**: Include important supporting information, examples, data, and evidence
-        3. **Structure & Organization**: Analyze how the content is organized and flows
-        4. **Context & Background**: Provide relevant context and background information mentioned
-        5. **Conclusions & Implications**: Highlight any conclusions, recommendations, or implications
-        6. **Significant Details**: Capture specific names, dates, numbers, quotes, and factual information
-        7. **Tone & Style**: Note the writing style, tone, and intended audience
-        8. **Critical Analysis**: Provide analytical insights about the content's significance
-
-        SUMMARY STRUCTURE:
-        - Begin with a comprehensive overview of the main topic and purpose
-        - Present key themes and arguments in detail with supporting evidence
-        - Include specific examples, data, quotes, and factual information
-        - Analyze the significance and implications of the content
-        - Conclude with the main takeaways and overall assessment
-
-        LENGTH & DETAIL REQUIREMENTS:
-        - ${lengthInstruction}
-        - Prioritize depth and comprehensiveness over brevity
-        - Include specific details that demonstrate thorough understanding
-        - Maintain accuracy while providing extensive analysis
-        - Use clear, well-structured paragraphs with logical flow
-        - Include relevant quotes and specific examples when available
-
-        QUALITY STANDARDS:
-        - Be thorough and leave no major point unaddressed
-        - Maintain objectivity while providing insightful analysis
-        - Use sophisticated vocabulary and clear explanations
-        - Ensure the summary could serve as a comprehensive substitute for reading the original
-        - Include transitional phrases to connect ideas smoothly
-
-        Text to analyze and summarize:
+        Summarize the following text. ${lengthInstruction}
+        
+        Text to summarize:
         "${params.text}"
-
-        Please provide a detailed, comprehensive summary that thoroughly analyzes and captures the essence, details, and significance of this content:
       `;
 
       const response = await fetch(`${this.API_URL}?key=${apiKey}`, {
@@ -81,13 +47,7 @@ class GeminiService {
             parts: [{
               text: prompt
             }]
-          }],
-          generationConfig: {
-            temperature: 0.3,
-            topK: 40,
-            topP: 0.8,
-            maxOutputTokens: 2048,
-          }
+          }]
         })
       });
 
@@ -121,15 +81,15 @@ class GeminiService {
   private getLengthInstruction(lengthType: string, lengthValue: string | number): string {
     switch (lengthType) {
       case 'short':
-        return 'Create a detailed yet concise analysis in 400-600 words that covers all major themes, key supporting details, and important insights. Focus on the most critical points while maintaining comprehensiveness.';
+        return 'Make the summary very concise, about 10% of the original length.';
       case 'medium':
-        return 'Create a comprehensive analysis in 800-1200 words that thoroughly examines all major themes, supporting details, context, examples, and implications. Include specific information and analytical insights.';
+        return 'Create a moderate summary, about 30% of the original length.';
       case 'long':
-        return 'Create an extensive, in-depth analysis in 1200-1800 words that comprehensively covers every significant aspect, theme, detail, and implication. Include all relevant examples, data, quotes, and provide thorough analytical insights.';
+        return 'Provide a detailed summary, about 50% of the original length.';
       case 'percentage':
-        return `Create a comprehensive analysis that captures approximately ${lengthValue}% of the original content's detail level while maintaining thorough coverage of all important themes, supporting information, and analytical insights.`;
+        return `Make the summary approximately ${lengthValue}% of the original length.`;
       default:
-        return 'Create a comprehensive analysis in 800-1200 words that thoroughly examines all major themes, supporting details, context, examples, and implications. Include specific information and analytical insights.';
+        return 'Create a moderate summary, about 30% of the original length.';
     }
   }
 }
