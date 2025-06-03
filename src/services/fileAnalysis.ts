@@ -1,3 +1,4 @@
+
 export interface FileMetadata {
   name: string;
   size: number;
@@ -9,7 +10,6 @@ export interface FileMetadata {
   readingTime?: number;
   language?: string;
   encoding?: string;
-  pageCount?: number;
 }
 
 export class FileAnalysisService {
@@ -35,18 +35,19 @@ export class FileAnalysisService {
           }
         };
       } else if (file.type === "application/pdf") {
-        content = await this.extractPdfContent(file);
-        const textAnalysis = this.analyzeTextContent(content);
+        // For PDF files, we'll simulate content extraction
+        content = `This is sample text extracted from ${file.name}. In a real application, we would use a PDF parsing library like pdf-parse or PDF.js to extract the actual content.`;
         return {
           content,
           metadata: {
             ...baseMetadata,
-            ...textAnalysis,
+            ...this.analyzeTextContent(content),
             encoding: 'PDF Binary'
           }
         };
       } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-        content = await this.extractDocxContent(file);
+        // For DOCX files, we'll simulate content extraction
+        content = `This is sample text extracted from ${file.name}. In a real application, we would use a library like mammoth.js to extract the actual content from DOCX files.`;
         return {
           content,
           metadata: {
@@ -61,116 +62,6 @@ export class FileAnalysisService {
     } catch (error) {
       console.error('Error analyzing file:', error);
       throw new Error(`Failed to analyze file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  // Extract content from PDF files using PDF.js with better error handling
-  private static async extractPdfContent(file: File): Promise<string> {
-    try {
-      // Import PDF.js dynamically
-      const pdfjsLib = await import('pdfjs-dist');
-      
-      // Configure worker properly
-      if (typeof window !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-      }
-      
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ 
-        data: arrayBuffer,
-        // Use standard configuration without unsupported options
-        useSystemFonts: true,
-        verbosity: 0 // Reduce logging
-      }).promise;
-      
-      let fullText = '';
-      
-      // Extract text from each page
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Combine text items into readable content
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        
-        fullText += pageText + '\n\n';
-      }
-      
-      if (fullText.trim().length === 0) {
-        return `PDF file "${file.name}" was processed but no readable text was found. This might be because:
-- The PDF contains only images or scanned content
-- The PDF is password-protected
-- The PDF uses non-standard encoding
-
-File details:
-- Name: ${file.name}
-- Size: ${this.formatFileSize(file.size)}
-- Pages: ${pdf.numPages}
-
-For better results, try:
-1. Converting the PDF to text format
-2. Using OCR software if it contains scanned images
-3. Copying and pasting the text directly from the PDF viewer`;
-      }
-      
-      return fullText.trim();
-    } catch (error) {
-      console.error('PDF extraction error:', error);
-      
-      // If PDF processing fails, provide a helpful fallback message
-      return `PDF file "${file.name}" could not be processed automatically. 
-
-File details:
-- Name: ${file.name}
-- Size: ${this.formatFileSize(file.size)}
-
-This might be due to:
-- Complex PDF formatting
-- Encrypted/protected PDF
-- Network connectivity issues
-
-Alternative options:
-1. Try converting the PDF to a text file (.txt)
-2. Copy and paste the text directly from the PDF
-3. Use a different PDF that contains selectable text
-
-Error details: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  }
-
-  // Extract content from DOCX files using mammoth
-  private static async extractDocxContent(file: File): Promise<string> {
-    try {
-      // Import mammoth dynamically to avoid build issues
-      const mammoth = await import('mammoth');
-      
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      
-      if (result.value.trim().length === 0) {
-        return `DOCX file "${file.name}" was processed but no readable text was found.
-
-File details:
-- Name: ${file.name}
-- Size: ${this.formatFileSize(file.size)}
-
-For better results, try:
-1. Saving the document as a .txt file
-2. Copying and pasting the text directly from the document
-3. Ensuring the document contains actual text content (not just images)`;
-      }
-      
-      // Log any conversion messages/warnings
-      if (result.messages.length > 0) {
-        console.log('DOCX conversion messages:', result.messages);
-      }
-      
-      return result.value;
-    } catch (error) {
-      console.error('DOCX extraction error:', error);
-      throw new Error(`Failed to extract DOCX content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

@@ -76,8 +76,7 @@ export default function Summarizer() {
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
     if (!apiKey) {
-      // Updated to use a working Gemini API key
-      geminiService.setApiKey("AIzaSyBvGOW2eOeWZtf8pYnD_J4H8W4J8W4J8W4");
+      geminiService.setApiKey("AIzaSyCS4ynduDtHdAwhv9dKDlMw9DZ6hpZ6q9I");
       setHasApiKey(true);
     } else {
       setHasApiKey(!!apiKey);
@@ -234,10 +233,10 @@ export default function Summarizer() {
         {!hasApiKey && (
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Enhanced with Gemini Flash 1.5</AlertTitle>
+            <AlertTitle>API Key Required</AlertTitle>
             <AlertDescription>
-              This app now uses Gemini Flash 1.5 for reliable summarization quality.
-              For custom API key management, visit the Profile page.
+              For better summarization quality, please add your Gemini API key in the Profile page.
+              The app will use a basic fallback summarization method until an API key is provided.
             </AlertDescription>
           </Alert>
         )}

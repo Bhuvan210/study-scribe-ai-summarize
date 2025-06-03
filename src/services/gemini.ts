@@ -25,51 +25,50 @@ class GeminiService {
     }
 
     try {
-      console.log("Using Gemini Flash 1.5 for summarization...");
+      console.log("Using Gemini Flash for detailed summarization...");
       console.log("API Key available:", !!apiKey);
 
       const lengthInstruction = this.getLengthInstruction(params.lengthType, params.lengthValue);
       
       const prompt = `
-        You are an advanced AI analyst with expertise in text comprehension and summarization. Your task is to create a precise, insightful, and well-structured summary that captures the essence and key information of the provided text.
+        You are an expert analyst and summarizer. Your task is to create a comprehensive, detailed, and insightful summary that thoroughly analyzes the provided text.
 
-        CORE OBJECTIVES:
-        1. **Accuracy & Fidelity**: Maintain complete accuracy to the original content without adding interpretations or external information
-        2. **Comprehensive Coverage**: Identify and include all major themes, arguments, and supporting evidence
-        3. **Structural Clarity**: Organize information logically with clear relationships between ideas
-        4. **Critical Analysis**: Highlight significance, implications, and key takeaways
-        5. **Contextual Understanding**: Preserve important context and background information
-
-        ANALYSIS FRAMEWORK:
-        - **Main Arguments**: Extract central thesis, primary claims, and key positions
-        - **Supporting Evidence**: Include data, examples, case studies, and factual support
-        - **Methodology & Process**: Capture any described procedures, methodologies, or systematic approaches
-        - **Key Findings**: Highlight discoveries, results, conclusions, and outcomes
-        - **Implications**: Note practical applications, consequences, and broader significance
-        - **Specific Details**: Preserve important names, dates, numbers, technical terms, and precise information
+        ANALYSIS REQUIREMENTS:
+        1. **Main Themes & Key Points**: Identify and elaborate on all major themes, arguments, and central ideas
+        2. **Supporting Details**: Include important supporting information, examples, data, and evidence
+        3. **Structure & Organization**: Analyze how the content is organized and flows
+        4. **Context & Background**: Provide relevant context and background information mentioned
+        5. **Conclusions & Implications**: Highlight any conclusions, recommendations, or implications
+        6. **Significant Details**: Capture specific names, dates, numbers, quotes, and factual information
+        7. **Tone & Style**: Note the writing style, tone, and intended audience
+        8. **Critical Analysis**: Provide analytical insights about the content's significance
 
         SUMMARY STRUCTURE:
-        - Begin with a clear statement of the document's main purpose and scope
-        - Present key themes and arguments with their supporting evidence
-        - Include specific details, data points, and examples that illustrate main concepts
-        - Organize information hierarchically from most to least important
-        - Conclude with main takeaways and significance
+        - Begin with a comprehensive overview of the main topic and purpose
+        - Present key themes and arguments in detail with supporting evidence
+        - Include specific examples, data, quotes, and factual information
+        - Analyze the significance and implications of the content
+        - Conclude with the main takeaways and overall assessment
 
         LENGTH & DETAIL REQUIREMENTS:
-        ${lengthInstruction}
+        - ${lengthInstruction}
+        - Prioritize depth and comprehensiveness over brevity
+        - Include specific details that demonstrate thorough understanding
+        - Maintain accuracy while providing extensive analysis
+        - Use clear, well-structured paragraphs with logical flow
+        - Include relevant quotes and specific examples when available
 
         QUALITY STANDARDS:
-        - Maintain objectivity and avoid personal opinions or external interpretations
-        - Use clear, professional language appropriate for the subject matter
-        - Ensure logical flow and smooth transitions between ideas
-        - Include specific terminology and technical language when relevant
-        - Preserve the original tone and style where appropriate
-        - Focus on substance over superficial details
+        - Be thorough and leave no major point unaddressed
+        - Maintain objectivity while providing insightful analysis
+        - Use sophisticated vocabulary and clear explanations
+        - Ensure the summary could serve as a comprehensive substitute for reading the original
+        - Include transitional phrases to connect ideas smoothly
 
-        SOURCE MATERIAL:
+        Text to analyze and summarize:
         "${params.text}"
 
-        Please provide a comprehensive, accurate summary that thoroughly captures the essential content, structure, and significance of this material:
+        Please provide a detailed, comprehensive summary that thoroughly analyzes and captures the essence, details, and significance of this content:
       `;
 
       const response = await fetch(`${this.API_URL}?key=${apiKey}`, {
@@ -84,22 +83,11 @@ class GeminiService {
             }]
           }],
           generationConfig: {
-            temperature: 0.2,
+            temperature: 0.3,
             topK: 40,
-            topP: 0.9,
-            maxOutputTokens: 3000,
-            candidateCount: 1
-          },
-          safetySettings: [
-            {
-              category: "HARM_CATEGORY_HARASSMENT",
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-              category: "HARM_CATEGORY_HATE_SPEECH", 
-              threshold: "BLOCK_MEDIUM_AND_ABOVE"
-            }
-          ]
+            topP: 0.8,
+            maxOutputTokens: 2048,
+          }
         })
       });
 
@@ -133,15 +121,15 @@ class GeminiService {
   private getLengthInstruction(lengthType: string, lengthValue: string | number): string {
     switch (lengthType) {
       case 'short':
-        return 'Create a focused, comprehensive summary in 300-500 words. Prioritize the most critical information while ensuring all major themes and key supporting details are covered. Be concise but thorough.';
+        return 'Create a detailed yet concise analysis in 400-600 words that covers all major themes, key supporting details, and important insights. Focus on the most critical points while maintaining comprehensiveness.';
       case 'medium':
-        return 'Create a detailed, well-structured summary in 600-1000 words. Include all major themes, supporting arguments, key evidence, and important details. Provide sufficient depth to serve as a comprehensive overview.';
+        return 'Create a comprehensive analysis in 800-1200 words that thoroughly examines all major themes, supporting details, context, examples, and implications. Include specific information and analytical insights.';
       case 'long':
-        return 'Create an extensive, in-depth summary in 1000-1500 words. Include comprehensive coverage of all themes, detailed supporting evidence, specific examples, methodology details, and thorough analysis of implications and significance.';
+        return 'Create an extensive, in-depth analysis in 1200-1800 words that comprehensively covers every significant aspect, theme, detail, and implication. Include all relevant examples, data, quotes, and provide thorough analytical insights.';
       case 'percentage':
-        return `Create a summary that captures approximately ${lengthValue}% of the original content's information density. Maintain proportional coverage of all major themes while preserving the most important details and maintaining readability.`;
+        return `Create a comprehensive analysis that captures approximately ${lengthValue}% of the original content's detail level while maintaining thorough coverage of all important themes, supporting information, and analytical insights.`;
       default:
-        return 'Create a detailed, well-structured summary in 600-1000 words. Include all major themes, supporting arguments, key evidence, and important details. Provide sufficient depth to serve as a comprehensive overview.';
+        return 'Create a comprehensive analysis in 800-1200 words that thoroughly examines all major themes, supporting details, context, examples, and implications. Include specific information and analytical insights.';
     }
   }
 }
