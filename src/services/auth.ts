@@ -1,6 +1,5 @@
-
 import { User } from "@/types";
-import { supabase } from "./supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 // Real authentication service using Supabase
 class AuthService {
