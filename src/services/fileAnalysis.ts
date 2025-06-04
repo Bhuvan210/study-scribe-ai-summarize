@@ -1,10 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker with a more reliable configuration
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.js',
-  import.meta.url,
-).toString();
+// Set up PDF.js worker with a configuration that works in Vite
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 export interface FileAnalysisResult {
   text: string;
@@ -79,11 +78,14 @@ class FileAnalysisService {
 
   private async extractTextFromPDF(file: File): Promise<{ text: string; pageCount: number; quality: 'high' | 'medium' | 'low' }> {
     try {
+      console.log('Starting PDF text extraction...');
       const arrayBuffer = await file.arrayBuffer();
       
       const pdf = await pdfjsLib.getDocument({
         data: arrayBuffer,
-        // Remove cMapUrl and cMapPacked to avoid CDN issues
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true,
       }).promise;
 
       const pageCount = pdf.numPages;
@@ -94,6 +96,7 @@ class FileAnalysisService {
 
       for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
         try {
+          console.log(`Processing page ${pageNum}...`);
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
           
@@ -127,6 +130,7 @@ class FileAnalysisService {
 
           fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
           totalTextItems += textContent.items.length;
+          console.log(`Page ${pageNum} processed: ${textContent.items.length} text items`);
 
         } catch (pageError) {
           console.warn(`Error extracting text from page ${pageNum}:`, pageError);
@@ -140,12 +144,13 @@ class FileAnalysisService {
         avgItemsPerPage > 50 ? 'high' : 
         avgItemsPerPage > 20 ? 'medium' : 'low';
 
+      console.log(`PDF extraction complete. Total items: ${totalTextItems}, Quality: ${quality}`);
       return { text: fullText, pageCount, quality };
     } catch (error) {
       console.error('PDF extraction error:', error);
       // Fallback: return a basic message if PDF extraction fails
       return {
-        text: `Failed to extract text from PDF: ${file.name}. The file may be corrupted or use unsupported features.`,
+        text: `Failed to extract text from PDF: ${file.name}. The file may be corrupted, password-protected, or use unsupported features. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         pageCount: 1,
         quality: 'low'
       };
