@@ -20,7 +20,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -46,6 +45,7 @@ import { UrlSummarizer } from "@/components/integrations/UrlSummarizer";
 import { TextAnalysis } from "@/components/summary/TextAnalysis";
 import { PdfExport } from "@/components/summary/PdfExport";
 import { SharingOptions } from "@/components/summary/SharingOptions";
+import { GoogleDocsImporter } from "@/components/integrations/GoogleDocsImporter";
 
 const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
@@ -190,11 +190,8 @@ export default function Summarizer() {
   };
 
   const importFromGoogleDocs = () => {
-    setActiveTab("external");
-    toast({
-      title: "Google Docs Integration",
-      description: "This would open Google OAuth for document selection (implementation pending)",
-    });
+    // This function is no longer needed as we're using the GoogleDocsImporter component
+    console.log("Google Docs import initiated");
   };
 
   const handleContentFetched = (content: string) => {
@@ -497,18 +494,98 @@ export default function Summarizer() {
                 
                 <TabsContent value="google">
                   <div className="space-y-6 py-4">
-                    <Button 
-                      className="w-full flex items-center justify-center gap-2" 
-                      variant="outline"
-                      onClick={importFromGoogleDocs}
-                    >
-                      <FileText className="h-5 w-5" />
-                      Connect to Google Docs
-                    </Button>
+                    <GoogleDocsImporter onContentFetched={handleContentFetched} />
                     <p className="text-center text-sm text-muted-foreground">
                       Import documents directly from your Google Drive.
                       <br />Sign in with your Google account to access your docs.
                     </p>
+                    
+                    {form.watch("text") && (
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted">
+                          <p className="text-sm text-foreground break-all">
+                            {form.watch("text")}
+                          </p>
+                        </div>
+
+                        <div>
+                          <FormLabel className="text-foreground">Summary Length</FormLabel>
+                          <div className="mt-1.5">
+                            <FormField
+                              control={form.control}
+                              name="summaryLength"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select summary length" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="short">
+                                        Short (~10% of original)
+                                      </SelectItem>
+                                      <SelectItem value="medium">
+                                        Medium (~30% of original)
+                                      </SelectItem>
+                                      <SelectItem value="long">
+                                        Long (~50% of original)
+                                      </SelectItem>
+                                      <SelectItem value="percentage">
+                                        Custom percentage
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        {watchSummaryLength === "percentage" && (
+                          <FormField
+                            control={form.control}
+                            name="percentageValue"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    {...field}
+                                    className="text-foreground"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={isLoading}
+                          onClick={form.handleSubmit(onSubmit)}
+                        >
+                          {isLoading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Summarizing...
+                            </>
+                          ) : (
+                            "Summarize Text"
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
                 
