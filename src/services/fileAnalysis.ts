@@ -1,8 +1,10 @@
-
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set up PDF.js worker with a more reliable configuration
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.js',
+  import.meta.url,
+).toString();
 
 export interface FileAnalysisResult {
   text: string;
@@ -76,69 +78,78 @@ class FileAnalysisService {
   }
 
   private async extractTextFromPDF(file: File): Promise<{ text: string; pageCount: number; quality: 'high' | 'medium' | 'low' }> {
-    const arrayBuffer = await file.arrayBuffer();
-    
-    const pdf = await pdfjsLib.getDocument({
-      data: arrayBuffer,
-      cMapUrl: `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/cmaps/`,
-      cMapPacked: true,
-    }).promise;
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      
+      const pdf = await pdfjsLib.getDocument({
+        data: arrayBuffer,
+        // Remove cMapUrl and cMapPacked to avoid CDN issues
+      }).promise;
 
-    const pageCount = pdf.numPages;
-    let fullText = '';
-    let totalTextItems = 0;
+      const pageCount = pdf.numPages;
+      let fullText = '';
+      let totalTextItems = 0;
 
-    console.log(`PDF has ${pageCount} pages`);
+      console.log(`PDF has ${pageCount} pages`);
 
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-      try {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Extract text with better formatting
-        const pageText = textContent.items
-          .filter((item): item is any => 'str' in item)
-          .map((item, index, array) => {
-            const nextItem = array[index + 1];
-            let text = item.str;
-            
-            // Add spacing based on positioning
-            if (nextItem && 'transform' in item && 'transform' in nextItem) {
-              const currentX = item.transform[4];
-              const nextX = nextItem.transform[4];
-              const currentY = item.transform[5];
-              const nextY = nextItem.transform[5];
+      for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+        try {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          // Extract text with better formatting
+          const pageText = textContent.items
+            .filter((item): item is any => 'str' in item)
+            .map((item, index, array) => {
+              const nextItem = array[index + 1];
+              let text = item.str;
               
-              // Add line break if significant Y position change
-              if (Math.abs(currentY - nextY) > 5) {
-                text += '\n';
+              // Add spacing based on positioning
+              if (nextItem && 'transform' in item && 'transform' in nextItem) {
+                const currentX = item.transform[4];
+                const nextX = nextItem.transform[4];
+                const currentY = item.transform[5];
+                const nextY = nextItem.transform[5];
+                
+                // Add line break if significant Y position change
+                if (Math.abs(currentY - nextY) > 5) {
+                  text += '\n';
+                }
+                // Add space if significant X position gap
+                else if (nextX - currentX > item.width + 2) {
+                  text += ' ';
+                }
               }
-              // Add space if significant X position gap
-              else if (nextX - currentX > item.width + 2) {
-                text += ' ';
-              }
-            }
-            
-            return text;
-          })
-          .join('');
+              
+              return text;
+            })
+            .join('');
 
-        fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
-        totalTextItems += textContent.items.length;
+          fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
+          totalTextItems += textContent.items.length;
 
-      } catch (pageError) {
-        console.warn(`Error extracting text from page ${pageNum}:`, pageError);
-        fullText += `\n--- Page ${pageNum} (extraction failed) ---\n`;
+        } catch (pageError) {
+          console.warn(`Error extracting text from page ${pageNum}:`, pageError);
+          fullText += `\n--- Page ${pageNum} (extraction failed) ---\n`;
+        }
       }
+
+      // Determine extraction quality
+      const avgItemsPerPage = totalTextItems / pageCount;
+      const quality: 'high' | 'medium' | 'low' = 
+        avgItemsPerPage > 50 ? 'high' : 
+        avgItemsPerPage > 20 ? 'medium' : 'low';
+
+      return { text: fullText, pageCount, quality };
+    } catch (error) {
+      console.error('PDF extraction error:', error);
+      // Fallback: return a basic message if PDF extraction fails
+      return {
+        text: `Failed to extract text from PDF: ${file.name}. The file may be corrupted or use unsupported features.`,
+        pageCount: 1,
+        quality: 'low'
+      };
     }
-
-    // Determine extraction quality
-    const avgItemsPerPage = totalTextItems / pageCount;
-    const quality: 'high' | 'medium' | 'low' = 
-      avgItemsPerPage > 50 ? 'high' : 
-      avgItemsPerPage > 20 ? 'medium' : 'low';
-
-    return { text: fullText, pageCount, quality };
   }
 
   private async extractTextFromPlainText(file: File): Promise<string> {
