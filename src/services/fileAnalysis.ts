@@ -1,8 +1,9 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set up PDF.js worker with a configuration that works in Vite
+// Configure PDF.js worker to use local worker
+const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs');
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker.PDFWorkerGlobal();
 }
 
 export interface FileAnalysisResult {
@@ -148,12 +149,7 @@ class FileAnalysisService {
       return { text: fullText, pageCount, quality };
     } catch (error) {
       console.error('PDF extraction error:', error);
-      // Fallback: return a basic message if PDF extraction fails
-      return {
-        text: `Failed to extract text from PDF: ${file.name}. The file may be corrupted, password-protected, or use unsupported features. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        pageCount: 1,
-        quality: 'low'
-      };
+      throw error;
     }
   }
 
