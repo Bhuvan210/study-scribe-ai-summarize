@@ -1,9 +1,8 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker to use local worker
-const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.mjs');
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker.PDFWorkerGlobal();
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 }
 
 export interface FileAnalysisResult {
