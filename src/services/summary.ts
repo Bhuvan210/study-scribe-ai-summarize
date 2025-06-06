@@ -202,10 +202,11 @@ class SummaryService {
             model: "legacy-extraction",
             lengthType,
             lengthValue,
-            source: params.source,
-            userId: null
+            source: params.source
           };
 
+          // Save and resolve
+          this.saveSummary(summary);
           resolve(summary);
         } catch (error) {
           reject(new Error(`Legacy summarization failed: ${error instanceof Error ? error.message : "Unknown error"}`));
@@ -234,13 +235,29 @@ class SummaryService {
   }
 
   // Get summaries from history
-  getSummariesFromHistory(): Summary[] {
+  async getSummaryHistory(): Promise<Summary[]> {
     try {
       const summariesJSON = localStorage.getItem(SummaryService.HISTORY_KEY);
       return summariesJSON ? JSON.parse(summariesJSON) : [];
     } catch (error) {
       console.error("Error retrieving summaries from history:", error);
       return [];
+    }
+  }
+  
+  // Delete a specific summary by ID
+  async deleteSummary(id: string): Promise<void> {
+    try {
+      const summariesJSON = localStorage.getItem(SummaryService.HISTORY_KEY);
+      if (!summariesJSON) return;
+      
+      const summaries: Summary[] = JSON.parse(summariesJSON);
+      const updatedSummaries = summaries.filter(summary => summary.id !== id);
+      
+      localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(updatedSummaries));
+    } catch (error) {
+      console.error("Error deleting summary:", error);
+      throw new Error(`Failed to delete summary: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
   
