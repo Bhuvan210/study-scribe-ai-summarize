@@ -7,7 +7,7 @@ import { urlService } from "@/services/url";
 
 interface TextAnalysisProps {
   text: string;
-  originalText?: string; // Optional original text for accuracy comparison
+  originalText?: string;
 }
 
 export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
@@ -33,28 +33,26 @@ export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
       const analysisResult = urlService.analyzeText(text);
       
       // Calculate accuracy if original text is provided
+      let finalAnalysis = { ...analysisResult };
       if (originalText && originalText.trim().length > 0) {
         const accuracyScore = calculateAccuracy(text, originalText);
-        analysisResult.accuracy = {
+        finalAnalysis.accuracy = {
           score: accuracyScore,
           label: getAccuracyLabel(accuracyScore)
         };
       }
       
-      setAnalysis(analysisResult);
+      setAnalysis(finalAnalysis);
     } else {
       setAnalysis(null);
     }
   }, [text, originalText]);
 
-  // Function to calculate accuracy by comparing summary to original text
   const calculateAccuracy = (summary: string, original: string): number => {
     try {
-      // Extract key terms from both texts
       const originalKeywords = extractKeywords(original);
       const summaryKeywords = extractKeywords(summary);
       
-      // Calculate keyword overlap
       let matchCount = 0;
       originalKeywords.forEach(word => {
         if (summaryKeywords.includes(word)) {
@@ -62,52 +60,43 @@ export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
         }
       });
       
-      // Calculate basic accuracy score
       const overlapScore = originalKeywords.length > 0 
         ? (matchCount / originalKeywords.length) * 100
         : 0;
         
-      // Adjust for summary length ratio (penalize if too short)
       const lengthRatio = Math.min(summary.length / original.length * 10, 1);
       const adjustedScore = overlapScore * lengthRatio;
       
       return Math.min(Math.round(adjustedScore), 100);
     } catch (error) {
       console.error("Error calculating accuracy:", error);
-      return 50; // Default to neutral score on error
+      return 50;
     }
   };
   
-  // Extract important keywords from text
   const extractKeywords = (text: string): string[] => {
-    // Remove common words and punctuation
     const cleanText = text.toLowerCase()
       .replace(/[^\w\s]/g, '')
       .replace(/\s+/g, ' ');
       
-    // Split into words
     const words = cleanText.split(' ');
     
-    // Remove common stop words
     const stopWords = ['the', 'and', 'is', 'in', 'to', 'of', 'that', 'it', 'with', 
                       'for', 'as', 'be', 'on', 'not', 'this', 'by', 'are', 'a', 'an'];
     const filteredWords = words.filter(word => 
       word.length > 3 && !stopWords.includes(word));
     
-    // Count word frequency
     const wordCounts: Record<string, number> = {};
     filteredWords.forEach(word => {
       wordCounts[word] = (wordCounts[word] || 0) + 1;
     });
     
-    // Sort by frequency and return top keywords
     return Object.entries(wordCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
       .map(([word]) => word);
   };
   
-  // Get descriptive label based on accuracy score
   const getAccuracyLabel = (score: number): string => {
     if (score >= 85) return "Excellent";
     if (score >= 70) return "Good";
@@ -120,7 +109,6 @@ export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
     return null;
   }
 
-  // Get appropriate color for sentiment
   const getSentimentColor = (label: string) => {
     switch (label) {
       case "positive":
@@ -132,14 +120,12 @@ export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
     }
   };
 
-  // Get appropriate color for readability
   const getReadabilityColor = (score: number) => {
     if (score >= 80) return "bg-green-500";
     if (score >= 60) return "bg-yellow-500";
     return "bg-red-500";
   };
   
-  // Get appropriate color for accuracy
   const getAccuracyColor = (score: number) => {
     if (score >= 80) return "bg-green-500";
     if (score >= 60) return "bg-yellow-500";

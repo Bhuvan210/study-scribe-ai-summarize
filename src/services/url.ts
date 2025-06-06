@@ -143,8 +143,6 @@ class UrlService {
     const stopWords = ['the', 'and', 'is', 'in', 'to', 'of', 'that', 'it', 'with', 'for', 'as', 'be', 'on', 'not', 'this', 'by', 'are'];
     return stopWords.includes(word);
   }
-  
-  // Keep any other existing methods
 }
 
 export const urlService = new UrlService();

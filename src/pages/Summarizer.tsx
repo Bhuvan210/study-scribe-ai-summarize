@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { useSummary } from "@/contexts/SummaryContext";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { FileUp, Loader2, FileText, Link, Upload, Key, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -25,12 +26,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -42,14 +37,7 @@ import { Summary } from "@/types";
 import { geminiService } from "@/services/gemini";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ChatInterface } from "@/components/summary/ChatInterface";
-import { UrlSummarizer } from "@/components/integrations/UrlSummarizer";
 import { TextAnalysis } from "@/components/summary/TextAnalysis";
-import { PdfExport } from "@/components/summary/PdfExport";
-import { SharingOptions } from "@/components/summary/SharingOptions";
-import { GoogleDocsImporter } from "@/components/integrations/GoogleDocsImporter";
-
-const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
-const SUPPORTED_FILE_TYPES = ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
 
 const formSchema = z.object({
   text: z.string().min(10, {
@@ -65,12 +53,8 @@ export default function Summarizer() {
   const { summarizeText, isLoading } = useSummary();
   const { toast } = useToast();
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState("paste");
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
-  const [fileAnalysis, setFileAnalysis] = useState<any>(null);
   
   useEffect(() => {
     const apiKey = geminiService.getApiKey();
@@ -112,21 +96,10 @@ export default function Summarizer() {
         }
       }
       
-      let source: string | undefined = undefined;
-      
-      if (activeTab === "upload" && uploadedFile) {
-        source = uploadedFile.name;
-      } else if (activeTab === "google") {
-        source = "google";
-      } else if (activeTab === "url") {
-        source = "url";
-      }
-      
       const result = await summarizeText({
         text: values.text,
         lengthType: values.summaryLength,
         lengthValue,
-        source,
       });
       
       setSummary(result);
@@ -139,82 +112,6 @@ export default function Summarizer() {
       });
     }
   }
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    
-    const file = e.target.files[0];
-    
-    if (!SUPPORTED_FILE_TYPES.includes(file.type)) {
-      toast({
-        title: "Unsupported file type",
-        description: "Please upload a PDF, DOCX, or TXT file.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (file.size > MAX_UPLOAD_SIZE) {
-      toast({
-        title: "File too large",
-        description: "File size must be less than 10MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Show special warning for DOCX files
-    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      toast({
-        title: "DOCX file detected",
-        description: "DOCX processing is limited. Consider using PDF or plain text for better results.",
-        variant: "destructive",
-      });
-    }
-    
-    setIsUploading(true);
-    setUploadedFile(file);
-    
-    try {
-      // Import the fileAnalysisService
-      const { fileAnalysisService } = await import("@/services/fileAnalysis");
-      
-      const analysisResult = await fileAnalysisService.analyzeFile(file);
-      setFileAnalysis(analysisResult);
-      form.setValue("text", analysisResult.text);
-      
-      toast({
-        title: "File processed",
-        description: `Extracted ${analysisResult.metadata.wordCount} words with ${analysisResult.metadata.extractionQuality} quality.`,
-      });
-    } catch (error) {
-      console.error("File processing error:", error);
-      toast({
-        title: "File processing failed",
-        description: error instanceof Error ? error.message : "Please try again with a different file format.",
-        variant: "destructive",
-      });
-      
-      // Clear the file input so user can try again
-      e.target.value = '';
-      setUploadedFile(null);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const importFromGoogleDocs = () => {
-    // This function is no longer needed as we're using the GoogleDocsImporter component
-    console.log("Google Docs import initiated");
-  };
-
-  const handleContentFetched = (content: string) => {
-    form.setValue("text", content);
-    toast({
-      title: "Content imported",
-      description: "Article content imported successfully",
-    });
-  };
 
   const copyToClipboard = () => {
     if (summary) {
@@ -234,7 +131,7 @@ export default function Summarizer() {
             Enhanced AI Text Summarizer
           </h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Upload documents or paste text for precise, contextually relevant summaries powered by Gemini Flash 1.5
+            Paste your text for precise, contextually relevant summaries powered by Gemini Flash 1.5
           </p>
         </div>
         
@@ -253,360 +150,117 @@ export default function Summarizer() {
             <CardHeader>
               <CardTitle className="text-foreground">Input Text</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Upload a file or paste your text
+                Paste your text to summarize
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="paste" value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="mb-4 grid w-full grid-cols-4">
-                  <TabsTrigger value="paste">Paste Text</TabsTrigger>
-                  <TabsTrigger value="upload">Upload File</TabsTrigger>
-                  <TabsTrigger value="google">Google Docs</TabsTrigger>
-                  <TabsTrigger value="url">URL</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="paste">
-                  <FormProvider {...form}>
-                    <Form {...form}>
-                      <form
-                        onSubmit={form.handleSubmit(onSubmit)}
-                        className="space-y-4"
-                      >
+              <FormProvider {...form}>
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="text"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground">Your Text</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Paste your text here to summarize..."
+                              className="h-48 resize-none text-foreground"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                          <div className="text-xs text-muted-foreground">
+                            {field.value.length}/50,000 characters
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-4">
+                      <div>
+                        <FormLabel className="text-foreground">Summary Length</FormLabel>
+                        <div className="mt-1.5">
+                          <FormField
+                            control={form.control}
+                            name="summaryLength"
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select
+                                  onValueChange={field.onChange}
+                                  defaultValue={field.value}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select summary length" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="short">
+                                      Short (~10% of original)
+                                    </SelectItem>
+                                    <SelectItem value="medium">
+                                      Medium (~30% of original)
+                                    </SelectItem>
+                                    <SelectItem value="long">
+                                      Long (~50% of original)
+                                    </SelectItem>
+                                    <SelectItem value="percentage">
+                                      Custom percentage
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      {watchSummaryLength === "percentage" && (
                         <FormField
                           control={form.control}
-                          name="text"
+                          name="percentageValue"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-foreground">Your Text</FormLabel>
+                              <FormLabel className="text-foreground">Percentage (%)</FormLabel>
                               <FormControl>
-                                <Textarea
-                                  placeholder="Paste your text here to summarize..."
-                                  className="h-48 resize-none text-foreground"
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="100"
                                   {...field}
+                                  className="text-foreground"
                                 />
                               </FormControl>
                               <FormMessage />
-                              <div className="text-xs text-muted-foreground">
-                                {field.value.length}/50,000 characters
-                              </div>
                             </FormItem>
                           )}
                         />
-
-                        <div className="space-y-4">
-                          <div>
-                            <FormLabel className="text-foreground">Summary Length</FormLabel>
-                            <div className="mt-1.5">
-                              <FormField
-                                control={form.control}
-                                name="summaryLength"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <Select
-                                      onValueChange={field.onChange}
-                                      defaultValue={field.value}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select summary length" />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <SelectItem value="short">
-                                          Short (~10% of original)
-                                        </SelectItem>
-                                        <SelectItem value="medium">
-                                          Medium (~30% of original)
-                                        </SelectItem>
-                                        <SelectItem value="long">
-                                          Long (~50% of original)
-                                        </SelectItem>
-                                        <SelectItem value="percentage">
-                                          Custom percentage
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                            </div>
-                          </div>
-
-                          {watchSummaryLength === "percentage" && (
-                            <FormField
-                              control={form.control}
-                              name="percentageValue"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel className="text-foreground">Percentage (%)</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      max="100"
-                                      {...field}
-                                      className="text-foreground"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          )}
-                        </div>
-
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isLoading}
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Summarizing...
-                            </>
-                          ) : (
-                            "Summarize Text"
-                          )}
-                        </Button>
-                      </form>
-                    </Form>
-                  </FormProvider>
-                </TabsContent>
-                
-                <TabsContent value="upload">
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-center w-full">
-                      <label
-                        htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted dark:border-gray-600 dark:hover:border-gray-500"
-                      >
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          {isUploading ? (
-                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                          ) : (
-                            <FileUp className="h-8 w-8 text-primary" />
-                          )}
-                          <p className="mb-2 text-sm text-foreground">
-                            <span className="font-semibold">Click to upload</span> or drag and drop
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            PDF, DOCX, TXT (MAX. 10MB)
-                          </p>
-                        </div>
-                        <input
-                          id="file-upload"
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,.docx,.txt"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                        />
-                      </label>
+                      )}
                     </div>
 
-                    {uploadedFile && (
-                      <div className="p-3 rounded-md border bg-muted/30 dark:bg-muted flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <FileUp className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium text-foreground">
-                            {uploadedFile.name}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {form.watch("text") && (
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted">
-                          <p className="text-sm text-foreground break-all">
-                            {form.watch("text")}
-                          </p>
-                        </div>
-
-                        <div>
-                          <FormLabel className="text-foreground">Summary Length</FormLabel>
-                          <div className="mt-1.5">
-                            <FormField
-                              control={form.control}
-                              name="summaryLength"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select summary length" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="short">
-                                        Short (~10% of original)
-                                      </SelectItem>
-                                      <SelectItem value="medium">
-                                        Medium (~30% of original)
-                                      </SelectItem>
-                                      <SelectItem value="long">
-                                        Long (~50% of original)
-                                      </SelectItem>
-                                      <SelectItem value="percentage">
-                                        Custom percentage
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-
-                        {watchSummaryLength === "percentage" && (
-                          <FormField
-                            control={form.control}
-                            name="percentageValue"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    {...field}
-                                    className="text-foreground"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isLoading}
-                          onClick={form.handleSubmit(onSubmit)}
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Summarizing...
-                            </>
-                          ) : (
-                            "Summarize Text"
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="google">
-                  <div className="space-y-6 py-4">
-                    <GoogleDocsImporter onContentFetched={handleContentFetched} />
-                    <p className="text-center text-sm text-muted-foreground">
-                      Import documents directly from your Google Drive.
-                      <br />Sign in with your Google account to access your docs.
-                    </p>
-                    
-                    {form.watch("text") && (
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted">
-                          <p className="text-sm text-foreground break-all">
-                            {form.watch("text")}
-                          </p>
-                        </div>
-
-                        <div>
-                          <FormLabel className="text-foreground">Summary Length</FormLabel>
-                          <div className="mt-1.5">
-                            <FormField
-                              control={form.control}
-                              name="summaryLength"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select summary length" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      <SelectItem value="short">
-                                        Short (~10% of original)
-                                      </SelectItem>
-                                      <SelectItem value="medium">
-                                        Medium (~30% of original)
-                                      </SelectItem>
-                                      <SelectItem value="long">
-                                        Long (~50% of original)
-                                      </SelectItem>
-                                      <SelectItem value="percentage">
-                                        Custom percentage
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-
-                        {watchSummaryLength === "percentage" && (
-                          <FormField
-                            control={form.control}
-                            name="percentageValue"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-foreground">Percentage (%)</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    {...field}
-                                    className="text-foreground"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        )}
-
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={isLoading}
-                          onClick={form.handleSubmit(onSubmit)}
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Summarizing...
-                            </>
-                          ) : (
-                            "Summarize Text"
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="url">
-                  <UrlSummarizer onContentFetched={handleContentFetched} />
-                </TabsContent>
-              </Tabs>
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Summarizing...
+                        </>
+                      ) : (
+                        "Summarize Text"
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              </FormProvider>
             </CardContent>
           </Card>
 
@@ -623,11 +277,13 @@ export default function Summarizer() {
                     </CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <SharingOptions 
-                      summaryText={summary.summaryText} 
-                      title={summary.source ? `Summary from ${summary.source}` : "Text Summary"}
-                    />
-                    <PdfExport summary={summary} />
+                    <Button 
+                      onClick={copyToClipboard} 
+                      variant="outline" 
+                      size="sm"
+                    >
+                      Copy
+                    </Button>
                     <Button 
                       onClick={() => setShowAnalysis(!showAnalysis)} 
                       variant="ghost" 
@@ -645,7 +301,7 @@ export default function Summarizer() {
                   {showAnalysis && (
                     <TextAnalysis 
                       text={summary.summaryText} 
-                      originalText={summary.originalText} // Pass the original text for accuracy comparison
+                      originalText={summary.originalText}
                     />
                   )}
                 </CardContent>
