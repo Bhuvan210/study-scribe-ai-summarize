@@ -1,3 +1,4 @@
+
 import { Summary, SummaryParams } from "@/types";
 import { geminiService } from "./gemini";
 import { fileAnalysisService } from "./fileAnalysis";
@@ -167,11 +168,11 @@ class SummaryService {
             // - Sentences with certain keywords get bonus points
             
             const positionScore = index < 3 ? (3 - index) * 3 : 
-                                 index < sentences.length * 0.2 ? 2 : 
-                                 index < sentences.length * 0.8 ? 1 : 0;
-                                 
+                               index < sentences.length * 0.2 ? 2 : 
+                               index < sentences.length * 0.8 ? 1 : 0;
+                               
             const lengthScore = sentence.length > 20 && sentence.length < 200 ? 2 : 
-                              sentence.length >= 200 ? 1 : 0;
+                            sentence.length >= 200 ? 1 : 0;
             
             // Keywords that might indicate important content
             const keywordBonus = /important|significant|key|critical|essential|main|primary|fundamental|crucial/i.test(sentence) ? 2 : 0;

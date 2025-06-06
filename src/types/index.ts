@@ -37,7 +37,7 @@ export interface Summary {
   createdAt: string;
   model?: string;
   source?: string; // Added source property as optional
-  userId?: string | null; // Add userId property as optional
+  userId?: string | null; // Added userId property as optional
 }
 
 export interface SummaryHistory {
