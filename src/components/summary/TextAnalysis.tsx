@@ -10,30 +10,32 @@ interface TextAnalysisProps {
   originalText?: string;
 }
 
+interface AnalysisResult {
+  readability: {
+    score: number;
+    level: string;
+    readingTime: number;
+  };
+  keywords: string[];
+  sentiment: {
+    score: number;
+    label: "positive" | "neutral" | "negative";
+  };
+  accuracy?: {
+    score: number;
+    label: string;
+  };
+}
+
 export function TextAnalysis({ text, originalText }: TextAnalysisProps) {
-  const [analysis, setAnalysis] = useState<{
-    readability: {
-      score: number;
-      level: string;
-      readingTime: number;
-    };
-    keywords: string[];
-    sentiment: {
-      score: number;
-      label: "positive" | "neutral" | "negative";
-    };
-    accuracy?: {
-      score: number;
-      label: string;
-    };
-  } | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
   useEffect(() => {
     if (text && text.trim().length > 0) {
       const analysisResult = urlService.analyzeText(text);
       
       // Calculate accuracy if original text is provided
-      let finalAnalysis = { ...analysisResult };
+      let finalAnalysis: AnalysisResult = { ...analysisResult };
       if (originalText && originalText.trim().length > 0) {
         const accuracyScore = calculateAccuracy(text, originalText);
         finalAnalysis.accuracy = {
