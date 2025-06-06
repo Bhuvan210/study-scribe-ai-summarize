@@ -1,3 +1,4 @@
+
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker to use local worker
@@ -22,41 +23,55 @@ class FileAnalysisService {
   async analyzeFile(file: File): Promise<FileAnalysisResult> {
     const fileType = file.type;
     const fileName = file.name;
+    const fileExtension = fileName.toLowerCase().split('.').pop();
 
-    console.log(`Analyzing file: ${fileName} (${fileType})`);
+    console.log(`Analyzing file: ${fileName} (${fileType}) - Extension: ${fileExtension}`);
 
     let extractedText = '';
     let pageCount: number | undefined;
     let extractionQuality: 'high' | 'medium' | 'low' = 'high';
 
     try {
-      switch (fileType) {
-        case 'application/pdf':
-          const pdfResult = await this.extractTextFromPDF(file);
-          extractedText = pdfResult.text;
-          pageCount = pdfResult.pageCount;
-          extractionQuality = pdfResult.quality;
-          break;
-        
-        case 'text/plain':
+      // Handle different file types based on MIME type and extension
+      if (fileType === 'application/pdf' || fileExtension === 'pdf') {
+        const pdfResult = await this.extractTextFromPDF(file);
+        extractedText = pdfResult.text;
+        pageCount = pdfResult.pageCount;
+        extractionQuality = pdfResult.quality;
+      } else if (fileType === 'text/plain' || fileExtension === 'txt') {
+        extractedText = await this.extractTextFromPlainText(file);
+      } else if (
+        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        fileExtension === 'docx'
+      ) {
+        const docxResult = await this.extractTextFromDOCX(file);
+        extractedText = docxResult.text;
+        extractionQuality = docxResult.quality;
+      } else if (
+        fileType === 'application/msword' ||
+        fileExtension === 'doc'
+      ) {
+        // Handle legacy DOC files
+        const docResult = await this.extractTextFromDOC(file);
+        extractedText = docResult.text;
+        extractionQuality = docResult.quality;
+      } else if (
+        fileType === 'application/rtf' ||
+        fileExtension === 'rtf'
+      ) {
+        // Handle RTF files
+        const rtfResult = await this.extractTextFromRTF(file);
+        extractedText = rtfResult.text;
+        extractionQuality = rtfResult.quality;
+      } else {
+        // Try to read as plain text for unknown types
+        console.log(`Unknown file type ${fileType}, attempting plain text extraction...`);
+        try {
           extractedText = await this.extractTextFromPlainText(file);
-          break;
-        
-        case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          // For DOCX files, provide a more descriptive response when extraction fails
-          try {
-            const docxResult = await this.extractTextFromDOCX(file);
-            extractedText = docxResult.text;
-            extractionQuality = docxResult.quality;
-          } catch (error) {
-            console.error("DOCX extraction failed:", error);
-            extractedText = "Unable to extract text from this DOCX file. The file may be corrupted or unsupported format.";
-            extractionQuality = 'low';
-          }
-          break;
-        
-        default:
-          throw new Error(`Unsupported file type: ${fileType}. Please upload PDF, DOCX, or TXT files.`);
+          extractionQuality = 'medium';
+        } catch (error) {
+          throw new Error(`Unsupported file type: ${fileType}. Supported formats: PDF, DOCX, DOC, RTF, TXT`);
+        }
       }
 
       // Validate extracted text quality
@@ -78,7 +93,7 @@ class FileAnalysisService {
       return {
         text: cleanedText,
         metadata: {
-          fileType,
+          fileType: fileType || `unknown (${fileExtension})`,
           fileName,
           wordCount: this.countWords(cleanedText),
           characterCount: cleanedText.length,
@@ -113,12 +128,9 @@ class FileAnalysisService {
           if (pageText.length > 0) {
             extractionSuccessCount++;
             fullText += `${pageText}\n\n`;
-          } else {
-            fullText += `--- Page ${i} (extraction failed) ---\n\n`;
           }
         } catch (err) {
           console.error(`Error extracting text from page ${i}:`, err);
-          fullText += `--- Page ${i} (extraction failed) ---\n\n`;
         }
       }
 
@@ -142,36 +154,30 @@ class FileAnalysisService {
   }
 
   private async extractTextFromPlainText(file: File): Promise<string> {
-    return await file.text();
+    try {
+      return await file.text();
+    } catch (error) {
+      throw new Error('Failed to read text file. The file may be corrupted or use an unsupported encoding.');
+    }
   }
 
   private async extractTextFromDOCX(file: File): Promise<{ text: string; quality: 'high' | 'medium' | 'low' }> {
     try {
       console.log('Starting DOCX text extraction...');
       
-      // For DOCX files, we need a better extraction method
-      // Since we can't use mammoth.js directly in the browser without additional setup,
-      // let's use a more reliable fallback approach
+      // Read file as array buffer
+      const arrayBuffer = await file.arrayBuffer();
       
-      // Instead of trying to parse the binary content directly,
-      // we'll inform the user that proper DOCX extraction requires server-side processing
-      // or additional libraries
+      // Basic DOCX extraction using XML parsing
+      const text = await this.parseDocxContent(arrayBuffer);
       
-      const text = `The content from your DOCX file (${file.name}) requires advanced processing.
-      
-For optimal DOCX extraction, consider:
-1. Converting your DOCX to PDF first
-2. Copying the text directly into the text input
-3. Using the Google Docs integration tab instead
-      
-If you proceed with this file, we'll attempt a basic extraction, but quality may be limited.`;
-      
-      // Return a meaningful message with medium quality
-      console.log(`DOCX extraction complete. Returning guidance message.`);
+      if (!text || text.trim().length < 10) {
+        throw new Error('Unable to extract meaningful text from DOCX file');
+      }
       
       return { 
         text, 
-        quality: 'medium' 
+        quality: 'medium' // Medium quality for basic XML extraction
       };
     } catch (error) {
       console.error('DOCX extraction error:', error);
@@ -179,46 +185,127 @@ If you proceed with this file, we'll attempt a basic extraction, but quality may
     }
   }
 
+  private async extractTextFromDOC(file: File): Promise<{ text: string; quality: 'high' | 'medium' | 'low' }> {
+    try {
+      // For legacy DOC files, we'll provide a helpful message
+      const fallbackText = `This appears to be a legacy Microsoft Word document (.doc).
+
+For best results, please:
+1. Open the document in Microsoft Word
+2. Save it as a .docx file or .pdf
+3. Upload the converted file
+
+Alternatively, you can copy the text content directly and paste it into the text input tab.
+
+File: ${file.name}
+Size: ${(file.size / 1024 / 1024).toFixed(2)}MB`;
+
+      return {
+        text: fallbackText,
+        quality: 'low'
+      };
+    } catch (error) {
+      throw new Error('Unable to process legacy DOC file. Please convert to DOCX or PDF format.');
+    }
+  }
+
+  private async extractTextFromRTF(file: File): Promise<{ text: string; quality: 'high' | 'medium' | 'low' }> {
+    try {
+      const content = await file.text();
+      
+      // Basic RTF parsing - remove RTF control codes
+      const cleanText = content
+        .replace(/\\[a-z]+\d*\s?/g, '') // Remove RTF control words
+        .replace(/[{}]/g, '') // Remove braces
+        .replace(/\\\\/g, '\\') // Unescape backslashes
+        .replace(/\\'/g, "'") // Unescape quotes
+        .trim();
+      
+      if (cleanText.length < 10) {
+        throw new Error('Unable to extract meaningful text from RTF file');
+      }
+      
+      return {
+        text: cleanText,
+        quality: 'medium'
+      };
+    } catch (error) {
+      throw new Error('Failed to process RTF file. Please try converting to PDF or plain text.');
+    }
+  }
+
+  private async parseDocxContent(arrayBuffer: ArrayBuffer): Promise<string> {
+    try {
+      // Convert ArrayBuffer to Uint8Array for processing
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // For a proper DOCX parser, we would need to:
+      // 1. Unzip the DOCX file (it's a ZIP archive)
+      // 2. Parse the word/document.xml file
+      // 3. Extract text content from XML nodes
+      
+      // This is a simplified approach that tries to find readable text
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      const content = decoder.decode(uint8Array);
+      
+      // Look for XML content patterns and extract text
+      const xmlMatches = content.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+      if (xmlMatches) {
+        const extractedText = xmlMatches
+          .map(match => match.replace(/<w:t[^>]*>([^<]*)<\/w:t>/, '$1'))
+          .join(' ')
+          .trim();
+        
+        if (extractedText.length > 0) {
+          return extractedText;
+        }
+      }
+      
+      // Fallback: look for any readable text patterns
+      const textPattern = /[a-zA-Z0-9\s.,!?;:'"()-]{20,}/g;
+      const textMatches = content.match(textPattern);
+      
+      if (textMatches && textMatches.length > 0) {
+        return textMatches.join(' ').substring(0, 10000); // Limit to prevent memory issues
+      }
+      
+      throw new Error('No readable text found in DOCX file');
+    } catch (error) {
+      console.error('DOCX parsing error:', error);
+      throw new Error('Failed to parse DOCX content. The file may be corrupted or use an unsupported format.');
+    }
+  }
+
   private cleanExtractedText(text: string): string {
     return text
       // Remove excessive whitespace
       .replace(/\s+/g, ' ')
-      // Clean up page markers
-      .replace(/--- Page \d+ ---/g, '')
-      .replace(/--- Page \d+ \(extraction failed\) ---/g, '')
-      // Remove multiple consecutive newlines
-      .replace(/\n{3,}/g, '\n\n')
-      // Remove common DOCX artifacts
+      // Remove common file artifacts
       .replace(/PK![^a-zA-Z]*[a-zA-Z]{1,3}[^a-zA-Z]*/g, '')
       .replace(/\[Content_Types\]\.xml/g, '')
       .replace(/_rels\/\.\.\./g, '')
       // Remove XML-like tags
       .replace(/<[^>]*>/g, ' ')
+      // Remove special characters that might cause issues
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       // Clean up multiple spaces again
       .replace(/\s+/g, ' ')
+      // Remove multiple consecutive newlines
+      .replace(/\n{3,}/g, '\n\n')
       // Trim whitespace
       .trim();
   }
 
   private countWords(text: string): number {
-    // Count words using regex to split by whitespace
     return text.split(/\s+/).filter(word => word.length > 0).length;
   }
 
   private detectLanguage(text: string): string {
-    // Simple language detection - just a sample implementation
-    // In a real application, use a proper language detection library
-    
-    // Check for common English words
+    // Simple language detection
     const englishWordCount = (text.match(/\b(the|and|is|in|to|of|that|it|with|for|as|be|on|not|this)\b/gi) || []).length;
-    
-    // Check for common Spanish words
     const spanishWordCount = (text.match(/\b(el|la|los|las|en|de|que|y|a|es|por|un|una|para|con|no)\b/gi) || []).length;
-    
-    // Check for common French words
     const frenchWordCount = (text.match(/\b(le|la|les|un|une|des|et|est|à|de|que|qui|dans|pour|en|ce|cette)\b/gi) || []).length;
     
-    // Determine language based on highest word count
     const counts = {
       'English': englishWordCount,
       'Spanish': spanishWordCount,
@@ -228,7 +315,6 @@ If you proceed with this file, we'll attempt a basic extraction, but quality may
     const detectedLanguage = Object.entries(counts)
       .sort((a, b) => b[1] - a[1])[0][0];
       
-    // If no clear detection, default to English
     return counts[detectedLanguage as keyof typeof counts] > 5 ? detectedLanguage : 'English';
   }
 }
