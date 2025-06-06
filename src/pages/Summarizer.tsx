@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -169,7 +168,7 @@ export default function Summarizer() {
       toast({
         title: "DOCX file detected",
         description: "DOCX processing is limited. Consider using PDF or plain text for better results.",
-        variant: "warning",
+        variant: "destructive",
       });
     }
     
@@ -644,7 +643,10 @@ export default function Summarizer() {
                   </div>
                   
                   {showAnalysis && (
-                    <TextAnalysis text={summary.summaryText} />
+                    <TextAnalysis 
+                      text={summary.summaryText} 
+                      originalText={summary.originalText} // Pass the original text for accuracy comparison
+                    />
                   )}
                 </CardContent>
                 <CardFooter className="flex justify-between">
