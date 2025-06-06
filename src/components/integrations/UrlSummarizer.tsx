@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "../components/ui/button";
-import { useToast } from "../components/ui/use-toast";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Loader2,
   Search,
@@ -9,19 +9,19 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { urlService } from "../services/url";
-import { Input } from "../components/ui/input";
+import { Input } from "@/components/ui/input";
 import {
   Alert,
   AlertTitle,
   AlertDescription,
-} from "../components/ui/alert";
+} from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
+} from "@/components/ui/select";
 
 interface UrlSummarizerProps {
   onContentFetched: (content: string) => void;
