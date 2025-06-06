@@ -1,3 +1,4 @@
+
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker to use local worker
@@ -43,18 +44,28 @@ class FileAnalysisService {
           break;
         
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-          // For now, we'll use a placeholder for DOCX
-          extractedText = await this.extractTextFromDOCX(file);
-          extractionQuality = 'medium';
+          const docxResult = await this.extractTextFromDOCX(file);
+          extractedText = docxResult.text;
+          extractionQuality = docxResult.quality;
           break;
         
         default:
-          throw new Error(`Unsupported file type: ${fileType}`);
+          throw new Error(`Unsupported file type: ${fileType}. Please upload PDF, DOCX, or TXT files.`);
+      }
+
+      // Validate extracted text quality
+      if (!extractedText || extractedText.trim().length < 10) {
+        throw new Error(`Unable to extract readable text from ${fileName}. The file may be corrupted, password-protected, or contain only images.`);
       }
 
       // Clean and enhance the extracted text
       const cleanedText = this.cleanExtractedText(extractedText);
       
+      // Final validation after cleaning
+      if (cleanedText.length < 50) {
+        throw new Error(`Extracted text is too short (${cleanedText.length} characters). Please ensure the file contains sufficient readable content.`);
+      }
+
       // Detect language (simple detection)
       const language = this.detectLanguage(cleanedText);
 
@@ -72,83 +83,55 @@ class FileAnalysisService {
       };
     } catch (error) {
       console.error('File analysis error:', error);
-      throw new Error(`Failed to analyze file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to analyze file: ${error instanceof Error ? error.message : 'Unknown error occurred during file processing'}`);
     }
   }
 
   private async extractTextFromPDF(file: File): Promise<{ text: string; pageCount: number; quality: 'high' | 'medium' | 'low' }> {
     try {
-      console.log('Starting PDF text extraction...');
       const arrayBuffer = await file.arrayBuffer();
-      
-      const pdf = await pdfjsLib.getDocument({
-        data: arrayBuffer,
-        useWorkerFetch: false,
-        isEvalSupported: false,
-        useSystemFonts: true,
-      }).promise;
-
-      const pageCount = pdf.numPages;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
       let fullText = '';
-      let totalTextItems = 0;
+      let extractionSuccessCount = 0;
 
-      console.log(`PDF has ${pageCount} pages`);
-
-      for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      for (let i = 1; i <= numPages; i++) {
         try {
-          console.log(`Processing page ${pageNum}...`);
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => item.str)
+            .join(' ')
+            .trim();
           
-          // Extract text with better formatting
-          const pageText = textContent.items
-            .filter((item): item is any => 'str' in item)
-            .map((item, index, array) => {
-              const nextItem = array[index + 1];
-              let text = item.str;
-              
-              // Add spacing based on positioning
-              if (nextItem && 'transform' in item && 'transform' in nextItem) {
-                const currentX = item.transform[4];
-                const nextX = nextItem.transform[4];
-                const currentY = item.transform[5];
-                const nextY = nextItem.transform[5];
-                
-                // Add line break if significant Y position change
-                if (Math.abs(currentY - nextY) > 5) {
-                  text += '\n';
-                }
-                // Add space if significant X position gap
-                else if (nextX - currentX > item.width + 2) {
-                  text += ' ';
-                }
-              }
-              
-              return text;
-            })
-            .join('');
-
-          fullText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
-          totalTextItems += textContent.items.length;
-          console.log(`Page ${pageNum} processed: ${textContent.items.length} text items`);
-
-        } catch (pageError) {
-          console.warn(`Error extracting text from page ${pageNum}:`, pageError);
-          fullText += `\n--- Page ${pageNum} (extraction failed) ---\n`;
+          if (pageText.length > 0) {
+            extractionSuccessCount++;
+            fullText += `${pageText}\n\n`;
+          } else {
+            fullText += `--- Page ${i} (extraction failed) ---\n\n`;
+          }
+        } catch (err) {
+          console.error(`Error extracting text from page ${i}:`, err);
+          fullText += `--- Page ${i} (extraction failed) ---\n\n`;
         }
       }
 
       // Determine extraction quality
-      const avgItemsPerPage = totalTextItems / pageCount;
-      const quality: 'high' | 'medium' | 'low' = 
-        avgItemsPerPage > 50 ? 'high' : 
-        avgItemsPerPage > 20 ? 'medium' : 'low';
+      const successRate = extractionSuccessCount / numPages;
+      let quality: 'high' | 'medium' | 'low';
+      
+      if (successRate > 0.8) quality = 'high';
+      else if (successRate > 0.5) quality = 'medium';
+      else quality = 'low';
 
-      console.log(`PDF extraction complete. Total items: ${totalTextItems}, Quality: ${quality}`);
-      return { text: fullText, pageCount, quality };
+      return { 
+        text: fullText, 
+        pageCount: numPages,
+        quality
+      };
     } catch (error) {
       console.error('PDF extraction error:', error);
-      throw error;
+      throw new Error('Failed to extract text from PDF. The file may be corrupted or password-protected.');
     }
   }
 
@@ -156,11 +139,83 @@ class FileAnalysisService {
     return await file.text();
   }
 
-  private async extractTextFromDOCX(file: File): Promise<string> {
-    // This is a simplified DOCX extraction
-    // In a real implementation, you'd use a library like mammoth.js
-    const text = await file.text();
-    return `Extracted content from ${file.name}:\n\n${text.substring(0, 1000)}...\n\n[Note: This is a simplified DOCX extraction. For better results, please convert to PDF or plain text.]`;
+  private async extractTextFromDOCX(file: File): Promise<{ text: string; quality: 'high' | 'medium' | 'low' }> {
+    try {
+      console.log('Starting DOCX text extraction...');
+      
+      // Read file as array buffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Convert to ZIP and extract document.xml
+      const zipData = new Uint8Array(arrayBuffer);
+      
+      // Simple DOCX text extraction by finding document.xml content
+      const textContent = await this.extractDocxText(zipData);
+      
+      if (!textContent || textContent.trim().length === 0) {
+        throw new Error('No readable text found in DOCX file. The document may be empty or contain only images.');
+      }
+
+      // Determine quality based on extraction success
+      const quality: 'high' | 'medium' | 'low' = textContent.length > 100 ? 'medium' : 'low';
+      
+      console.log(`DOCX extraction complete. Extracted ${textContent.length} characters with ${quality} quality.`);
+      
+      return { text: textContent, quality };
+    } catch (error) {
+      console.error('DOCX extraction error:', error);
+      throw new Error(`Failed to extract text from DOCX file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  private async extractDocxText(zipData: Uint8Array): Promise<string> {
+    try {
+      // This is a simplified DOCX extraction
+      // For production use, consider using a library like mammoth.js
+      
+      // Convert to string to search for text content
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      const content = decoder.decode(zipData);
+      
+      // Look for text content patterns in the DOCX structure
+      const textMatches = content.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+      
+      if (textMatches && textMatches.length > 0) {
+        // Extract text from XML tags
+        const extractedText = textMatches
+          .map(match => {
+            const textMatch = match.match(/<w:t[^>]*>([^<]+)<\/w:t>/);
+            return textMatch ? textMatch[1] : '';
+          })
+          .filter(text => text.trim().length > 0)
+          .join(' ');
+        
+        if (extractedText.length > 0) {
+          return extractedText;
+        }
+      }
+      
+      // Fallback: try to find any readable text in the content
+      const readableText = content
+        .replace(/[^\x20-\x7E\s]/g, ' ') // Keep only printable ASCII and whitespace
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      // Extract meaningful sentences (at least 10 characters with some words)
+      const sentences = readableText
+        .split(/[.!?]+/)
+        .filter(sentence => sentence.trim().length > 10 && /\w+/.test(sentence))
+        .map(sentence => sentence.trim())
+        .slice(0, 50); // Limit to first 50 sentences
+      
+      if (sentences.length > 0) {
+        return sentences.join('. ') + '.';
+      }
+      
+      throw new Error('No readable text content found in DOCX file');
+    } catch (error) {
+      throw new Error(`DOCX text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private cleanExtractedText(text: string): string {
@@ -172,23 +227,48 @@ class FileAnalysisService {
       .replace(/--- Page \d+ \(extraction failed\) ---/g, '')
       // Remove multiple consecutive newlines
       .replace(/\n{3,}/g, '\n\n')
+      // Remove common DOCX artifacts
+      .replace(/PK![^a-zA-Z]*[a-zA-Z]{1,3}[^a-zA-Z]*/g, '')
+      .replace(/\[Content_Types\]\.xml/g, '')
+      .replace(/_rels\/\.\.\./g, '')
+      // Remove XML-like tags
+      .replace(/<[^>]*>/g, ' ')
+      // Clean up multiple spaces again
+      .replace(/\s+/g, ' ')
       // Trim whitespace
       .trim();
   }
 
   private countWords(text: string): number {
+    // Count words using regex to split by whitespace
     return text.split(/\s+/).filter(word => word.length > 0).length;
   }
 
   private detectLanguage(text: string): string {
-    // Simple language detection based on common words
-    const englishWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
-    const words = text.toLowerCase().split(/\s+/).slice(0, 100); // Check first 100 words
+    // Simple language detection - just a sample implementation
+    // In a real application, use a proper language detection library
     
-    const englishCount = words.filter(word => englishWords.includes(word)).length;
-    const englishRatio = englishCount / Math.min(words.length, 100);
+    // Check for common English words
+    const englishWordCount = (text.match(/\b(the|and|is|in|to|of|that|it|with|for|as|be|on|not|this)\b/gi) || []).length;
     
-    return englishRatio > 0.1 ? 'en' : 'unknown';
+    // Check for common Spanish words
+    const spanishWordCount = (text.match(/\b(el|la|los|las|en|de|que|y|a|es|por|un|una|para|con|no)\b/gi) || []).length;
+    
+    // Check for common French words
+    const frenchWordCount = (text.match(/\b(le|la|les|un|une|des|et|est|à|de|que|qui|dans|pour|en|ce|cette)\b/gi) || []).length;
+    
+    // Determine language based on highest word count
+    const counts = {
+      'English': englishWordCount,
+      'Spanish': spanishWordCount,
+      'French': frenchWordCount
+    };
+    
+    const detectedLanguage = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])[0][0];
+      
+    // If no clear detection, default to English
+    return counts[detectedLanguage as keyof typeof counts] > 5 ? detectedLanguage : 'English';
   }
 }
 

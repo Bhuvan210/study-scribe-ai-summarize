@@ -128,3 +128,130 @@ class SummaryService {
 
           if (!text || text.trim().length === 0) {
             reject(new Error("No text content provided for summarization."));
+            return;
+          }
+          
+          // Simple text-based summarization using extraction
+          const sentences = text
+            .replace(/\s+/g, " ")
+            .split(/[.!?]+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+            
+          if (sentences.length === 0) {
+            reject(new Error("Could not extract meaningful sentences from the text."));
+            return;
+          }
+          
+          let targetSentenceCount;
+          let summaryText = '';
+          
+          if (lengthType === "percentage" && typeof lengthValue === "number") {
+            targetSentenceCount = Math.max(1, Math.ceil(sentences.length * (lengthValue / 100)));
+          } else {
+            // Predefined lengths
+            const lengthMapping = {
+              short: 0.15, // ~15% of original content
+              medium: 0.3, // ~30% of original content
+              long: 0.5, // ~50% of original content
+            };
+            const percentage = lengthMapping[lengthType as keyof typeof lengthMapping] || 0.3;
+            targetSentenceCount = Math.max(1, Math.ceil(sentences.length * percentage));
+          }
+          
+          // Simple importance ranking based on sentence length and position
+          const rankedSentences = sentences.map((sentence, index) => {
+            // Simple ranking formula: 
+            // - Earlier sentences are more important (especially first few)
+            // - Medium-length sentences are favored over very short or very long ones
+            // - Sentences with certain keywords get bonus points
+            
+            const positionScore = index < 3 ? (3 - index) * 3 : 
+                                 index < sentences.length * 0.2 ? 2 : 
+                                 index < sentences.length * 0.8 ? 1 : 0;
+                                 
+            const lengthScore = sentence.length > 20 && sentence.length < 200 ? 2 : 
+                              sentence.length >= 200 ? 1 : 0;
+            
+            // Keywords that might indicate important content
+            const keywordBonus = /important|significant|key|critical|essential|main|primary|fundamental|crucial/i.test(sentence) ? 2 : 0;
+            
+            return {
+              index,
+              sentence,
+              score: positionScore + lengthScore + keywordBonus
+            };
+          });
+          
+          // Sort by original position to maintain narrative flow
+          const selectedSentences = rankedSentences
+            .sort((a, b) => b.score - a.score)
+            .slice(0, targetSentenceCount)
+            .sort((a, b) => a.index - b.index);
+            
+          summaryText = selectedSentences.map(item => item.sentence).join(". ") + ".";
+          
+          // Generate summary ID
+          const id = `fallback-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          
+          const summary: Summary = {
+            id,
+            summaryText,
+            originalText: text,
+            createdAt: new Date().toISOString(),
+            model: "legacy-extraction",
+            lengthType,
+            lengthValue,
+            source: params.source,
+            userId: null
+          };
+
+          resolve(summary);
+        } catch (error) {
+          reject(new Error(`Legacy summarization failed: ${error instanceof Error ? error.message : "Unknown error"}`));
+        }
+      }, 1000);
+    });
+  }
+
+  // Save summary to local storage
+  private saveSummary(summary: Summary): void {
+    try {
+      const summariesJSON = localStorage.getItem(SummaryService.HISTORY_KEY);
+      const summaries: Summary[] = summariesJSON ? JSON.parse(summariesJSON) : [];
+      
+      // Add new summary to the beginning of the array
+      summaries.unshift(summary);
+      
+      // Keep only the last 20 summaries to avoid localStorage limits
+      const trimmedSummaries = summaries.slice(0, 20);
+      
+      localStorage.setItem(SummaryService.HISTORY_KEY, JSON.stringify(trimmedSummaries));
+    } catch (error) {
+      console.error("Error saving summary to history:", error);
+      // Non-critical error, don't throw
+    }
+  }
+
+  // Get summaries from history
+  getSummariesFromHistory(): Summary[] {
+    try {
+      const summariesJSON = localStorage.getItem(SummaryService.HISTORY_KEY);
+      return summariesJSON ? JSON.parse(summariesJSON) : [];
+    } catch (error) {
+      console.error("Error retrieving summaries from history:", error);
+      return [];
+    }
+  }
+  
+  // Clear summary history
+  clearSummaryHistory(): void {
+    try {
+      localStorage.removeItem(SummaryService.HISTORY_KEY);
+    } catch (error) {
+      console.error("Error clearing summary history:", error);
+    }
+  }
+}
+
+export const summaryService = new SummaryService();

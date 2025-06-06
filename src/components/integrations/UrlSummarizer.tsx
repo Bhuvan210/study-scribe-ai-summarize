@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -8,7 +9,7 @@ import {
   FileText,
   Link as LinkIcon,
 } from "lucide-react";
-import { urlService } from "../services/url";
+import { urlService } from "@/services/url";
 import { Input } from "@/components/ui/input";
 import {
   Alert,
