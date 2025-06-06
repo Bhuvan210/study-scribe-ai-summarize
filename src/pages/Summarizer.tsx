@@ -164,6 +164,15 @@ export default function Summarizer() {
       return;
     }
     
+    // Show special warning for DOCX files
+    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      toast({
+        title: "DOCX file detected",
+        description: "DOCX processing is limited. Consider using PDF or plain text for better results.",
+        variant: "warning",
+      });
+    }
+    
     setIsUploading(true);
     setUploadedFile(file);
     
@@ -176,16 +185,20 @@ export default function Summarizer() {
       form.setValue("text", analysisResult.text);
       
       toast({
-        title: "File processed successfully",
-        description: `Extracted ${analysisResult.metadata.wordCount} words from ${file.name} with ${analysisResult.metadata.extractionQuality} quality.`,
+        title: "File processed",
+        description: `Extracted ${analysisResult.metadata.wordCount} words with ${analysisResult.metadata.extractionQuality} quality.`,
       });
     } catch (error) {
       console.error("File processing error:", error);
       toast({
         title: "File processing failed",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: error instanceof Error ? error.message : "Please try again with a different file format.",
         variant: "destructive",
       });
+      
+      // Clear the file input so user can try again
+      e.target.value = '';
+      setUploadedFile(null);
     } finally {
       setIsUploading(false);
     }
